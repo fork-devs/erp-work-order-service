@@ -1,0 +1,98 @@
+server:
+  port: ${SERVER_PORT:8088}
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: erp-work-order-service
+
+  datasource:
+    # El rol de ejecucion NO es propietario de las tablas: el propietario
+    # elude su propia politica de Row-Level Security, de modo que con el
+    # propietario la politica no aislaria nada.
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5437/erp_work_order_db}
+    username: ${SPRING_DATASOURCE_USERNAME:erp_work_order_app}
+    # Sin valor por defecto: la contrasena llega por variable de entorno o
+    # por el almacen de secretos. Un valor por defecto en un fichero
+    # versionado es un secreto publicado (hallazgo 7.18).
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 30000
+      pool-name: WorkOrderHikariPool
+      connection-timeout: 20000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # El servicio es dueno de su esquema. Con baseline-on-migrate activado, una
+    # base ya existente se marcaria como linea base y las migraciones NO se
+    # aplicarian: la politica RLS no llegaria a crearse.
+    baseline-on-migrate: false
+    # Las migraciones se ejecutan con el rol de propietario, que es distinto
+    # del rol de ejecucion de la aplicacion.
+    user: ${SPRING_FLYWAY_USER:erp_work_order_owner}
+    password: ${SPRING_FLYWAY_PASSWORD:}
+    placeholders:
+      # Contrasena del rol de EJECUCION de la aplicacion, que crea la
+      # migracion. Sin privilegios de propietario y sin BYPASSRLS.
+      appRolePassword: ${ERP_APP_DB_PASSWORD:}
+
+erp:
+  auth:
+    # El conjunto de claves del emisor se publica en /.well-known/jwks.json.
+    # La URL debe usar un esquema cifrado; el arranque falla de forma
+    # explicita si no, y la unica excepcion es el perfil de desarrollo local.
+    jwks-url: ${JWKS_URL:https://auth.erp-automotriz.com/.well-known/jwks.json}
+  inventory:
+    # Llamada de la saga: el plazo es el documentado (500 ms) y el host por
+    # variable de entorno. La ruta del gateway ya reserva /:8088 con el
+    # mismo plazo: aqui se consume su API.
+    base-url: ${INVENTORY_SERVICE_URL:http://localhost:8084}
+  fleet:
+    base-url: ${FLEET_SERVICE_URL:http://localhost:8083}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    # El documento se publica tras un perfil: en produccion no hace falta, y
+    # publicarlo es informar a cualquiera de la superficie de la API.
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: ${SWAGGER_ENABLED:false}
+    operationsSorter: method
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+      probes:
+        enabled: true
+      group:
+        # La disponibilidad comprueba de verdad la base de datos: un servicio
+        # con el pool de conexiones roto esta vivo, pero no sirve de nada.
+        readiness:
+          include: readinessState, workOrderReadiness
+
+logging:
+  level:
+    root: INFO
+    com.erp.workorder: DEBUG
