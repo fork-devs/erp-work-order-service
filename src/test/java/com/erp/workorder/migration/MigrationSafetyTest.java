@@ -9,9 +9,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -27,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MigrationSafetyTest extends AbstractWorkOrderIntegrationTest {
 
     private static final String[] TABLAS = {
-            "work_orders", "work_order_items", "work_order_status_history", "work_order_outbox"
+            "work_orders", "work_order_items", "work_order_status_history", "work_order_outbox", "work_order_sequences"
     };
 
     private static boolean exists(Connection connection, String table) throws SQLException {
@@ -77,6 +79,62 @@ class MigrationSafetyTest extends AbstractWorkOrderIntegrationTest {
                                  + "AND indexdef ILIKE '%number%'")) {
                 assertTrue(resultSet.next());
                 assertTrue(resultSet.getInt(1) >= 1, "la unicidad (tenant_id, number) no esta declarada");
+            }
+        }
+    }
+
+    @Test
+    void laUnicidadDelCorrelativoRechazaLaRepeticion() throws SQLException {
+        UUID tenant = UUID.randomUUID();
+        String sql = "INSERT INTO work_orders (tenant_id, number, customer_id, vehicle_id, branch_id, status) "
+                + "VALUES (?, ?, gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'RECEPCIONADA')";
+        try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection()) {
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setObject(1, tenant);
+                statement.setString(2, "WO-000001");
+                statement.executeUpdate();
+
+                try (PreparedStatement repeat = connection.prepareStatement(sql)) {
+                    repeat.setObject(1, tenant);
+                    repeat.setString(2, "WO-000001");
+                    assertThrows(SQLException.class, repeat::executeUpdate,
+                            "dos ordenes del mismo taller no pueden llevar el mismo numero");
+                }
+            } finally {
+                try (Statement cleanup = connection.createStatement()) {
+                    cleanup.execute("DELETE FROM work_orders WHERE tenant_id = '" + tenant + "'");
+                }
+            }
+        }
+    }
+
+    @Test
+    void laTablaDeNumeracionExisteConSuFilaPorTaller() throws SQLException {
+        UUID tenant = UUID.randomUUID();
+        String claim = "INSERT INTO work_order_sequences (tenant_id, last_number) VALUES (?, 1) "
+                + "ON CONFLICT (tenant_id) DO NOTHING";
+        String bump = "UPDATE work_order_sequences SET last_number = last_number + 1, updated_at = now() "
+                + "WHERE tenant_id = ? RETURNING last_number";
+        try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection()) {
+            try (PreparedStatement statement = connection.prepareStatement(claim)) {
+                statement.setObject(1, tenant);
+                assertEquals(1, statement.executeUpdate(), "el reclamo de la fila del taller debe crearla");
+            }
+            try (PreparedStatement statement = connection.prepareStatement(claim)) {
+                statement.setObject(1, tenant);
+                assertEquals(0, statement.executeUpdate(), "el segundo reclamo no debe duplicar la fila");
+            }
+            try (PreparedStatement statement = connection.prepareStatement(bump)) {
+                statement.setObject(1, tenant);
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    assertTrue(resultSet.next(), "el incremento debe devolver el numero nuevo");
+                    assertEquals(2, resultSet.getInt(1), "el contador solo avanza");
+                }
+            }
+        } finally {
+            try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection();
+                 Statement cleanup = connection.createStatement()) {
+                cleanup.execute("DELETE FROM work_order_sequences WHERE tenant_id = '" + tenant + "'");
             }
         }
     }
