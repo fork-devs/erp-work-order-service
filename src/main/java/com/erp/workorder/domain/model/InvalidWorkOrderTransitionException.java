@@ -1,26 +1,27 @@
 package com.erp.workorder.domain.model;
 
 /**
- * La transicion entre estados que el dominio no declara. La orden no cambia de
- * estado, no deja fila de historia, y el fallo es del CLIENTE del dominio: la
- * historia inmutable no registra transiciones que no ocurrieron.
+ * The transition between statuses the domain does not declare. The order
+ * keeps its status, no history row is written, and the fault belongs to the
+ * CALLER of the domain: the immutable history never records transitions that
+ * did not happen.
  */
 public class InvalidWorkOrderTransitionException extends RuntimeException {
 
-    private final WorkOrderStatus origen;
-    private final WorkOrderStatus destino;
+    private final WorkOrderStatus origin;
+    private final WorkOrderStatus destination;
 
-    public InvalidWorkOrderTransitionException(WorkOrderStatus origen, WorkOrderStatus destino) {
-        super("la transicion " + origen + " -> " + destino + " no esta declarada");
-        this.origen = origen;
-        this.destino = destino;
+    public InvalidWorkOrderTransitionException(WorkOrderStatus origin, WorkOrderStatus destination) {
+        super("transition " + origin + " -> " + destination + " is not declared");
+        this.origin = origin;
+        this.destination = destination;
     }
 
-    public WorkOrderStatus origen() {
-        return origen;
+    public WorkOrderStatus origin() {
+        return origin;
     }
 
-    public WorkOrderStatus destino() {
-        return destino;
+    public WorkOrderStatus destination() {
+        return destination;
     }
 }

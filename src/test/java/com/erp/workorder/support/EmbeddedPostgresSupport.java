@@ -8,18 +8,18 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * Arranca una instancia real de PostgreSQL en proceso, para los tests que
- * necesitan verificar el comportamiento de la base de datos y no su
- * simulacion: Row-Level Security, restricciones NOT NULL y migraciones.
+ * Starts a real PostgreSQL instance in process, for the tests that need to
+ * verify the database behavior and not its simulation: Row-Level Security,
+ * NOT NULL constraints and migrations.
  *
- * <p>El entorno de ejecucion no dispone de Docker, de modo que Testcontainers
- * no es viable. {@code embedded-postgres} descarga y arranca una distribucion
- * real de PostgreSQL como proceso nativo, con las migraciones Flyway aplicadas
- * por el rol PROPIETARIO y la aplicacion conectando con el rol de EJECUCION.
+ * <p>The runtime environment has no Docker, so Testcontainers is not viable.
+ * {@code embedded-postgres} downloads and starts a real PostgreSQL
+ * distribution as a native process, with the Flyway migrations applied by the
+ * OWNER role and the application connecting with the EXECUTION role.
  */
 public final class EmbeddedPostgresSupport {
 
-    /** Rol de ejecucion de la aplicacion: no es propietario de las tablas. */
+    /** The application EXECUTION role: it is not the owner of the tables. */
     public static final String APP_ROLE = "erp_work_order_app";
     public static final String APP_PASSWORD = "erp_work_order_app_test_password";
 
@@ -52,10 +52,10 @@ public final class EmbeddedPostgresSupport {
                  Statement statement = connection.createStatement()) {
                 statement.execute("ALTER ROLE \"" + ownerUser + "\" WITH PASSWORD '" + OWNER_PASSWORD + "'");
             }
-            // El rol de EJECUCION lo crea la migracion V1, con la contrasena
-            // que llega por el placeholder appRolePassword de Flyway.
+            // The EXECUTION role is created by migration V1, with the password
+            // arriving through the Flyway appRolePassword placeholder.
         } catch (IOException | SQLException e) {
-            throw new IllegalStateException("No se pudo arrancar PostgreSQL embebido para los tests", e);
+            throw new IllegalStateException("Could not start the embedded PostgreSQL for the tests", e);
         }
     }
 
@@ -66,7 +66,7 @@ public final class EmbeddedPostgresSupport {
         try {
             postgres.close();
         } catch (IOException e) {
-            throw new IllegalStateException("No se pudo detener PostgreSQL embebido", e);
+            throw new IllegalStateException("Could not stop the embedded PostgreSQL", e);
         } finally {
             postgres = null;
             jdbcUrl = null;

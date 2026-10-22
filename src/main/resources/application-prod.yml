@@ -1,10 +1,10 @@
 # ==============================================================================
-# ERP WORK ORDER SERVICE - PERFIL DE PRODUCCION
+# ERP WORK ORDER SERVICE - PRODUCTION PROFILE
 # ==============================================================================
-# El servicio es dueno de su esquema: las migraciones se ejecutan siempre,
-# sin marcar la base como linea base. Con baseline-on-migrate activado, una
-# base ya existente se saltaria las migraciones y la politica de
-# Row-Level Security no llegaria a crearse.
+# The service owns its schema: migrations always run, never marking the
+# database as baseline. With baseline-on-migrate on, an existing database
+# would skip the migrations and the Row-Level Security policy would never be
+# created.
 # ==============================================================================
 
 spring:
@@ -33,8 +33,8 @@ erp:
   auth:
     jwks-url: ${JWKS_URL}
 
-  # La saga llama al inventario y la apertura verifica contra fleet: sus
-  # plazos y su circuito viven en application.yml, los host por entorno.
+  # The saga calls the inventory and the opening verifies against fleet:
+  # deadlines and circuit live in application.yml, hosts by environment.
   inventory:
     base-url: ${INVENTORY_SERVICE_URL}
   fleet:

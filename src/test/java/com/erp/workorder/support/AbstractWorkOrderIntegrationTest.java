@@ -5,11 +5,11 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * Base de los tests de integracion del servicio de ordenes de trabajo.
+ * Base of the work order service integration tests.
  *
- * <p>Arranca PostgreSQL real en proceso y conecta la aplicacion con el rol de
- * ejecucion {@code erp_work_order_app}, que no es propietario de las tablas.
- * Las migraciones de Flyway las ejecuta el propietario.
+ * <p>Starts a real PostgreSQL in process and connects the application with
+ * the EXECUTION role {@code erp_work_order_app}, which is not the owner of
+ * the tables. The Flyway migrations run as the owner.
  */
 @SpringBootTest
 public abstract class AbstractWorkOrderIntegrationTest {

@@ -1,18 +1,18 @@
 -- =============================================================================
--- ERP WORK ORDER SERVICE - V2: NUMERACION RESERVADA POR TALLER
+-- ERP WORK ORDER SERVICE - V2: PER-TENANT RESERVED NUMBERING
 -- =============================================================================
--- El numero de orden se RESERVA en el momento de abrir la orden, con el mismo
--- criterio que el ADR-002 fijo para los comprobantes fiscales y que el
--- hallazgo 6.43 cerro en el hub: un contador por taller que solo avanza, no
--- un COUNT sobre las filas (dos aperturas simultaneas obtendrian el mismo
--- numero, y el hueco de una orden cancelada se reutilizaria).
+-- The order number is RESERVED the moment the order opens, with the same rule
+-- ADR-002 fixed for fiscal documents and finding 6.43 closed at the hub: a
+-- counter per tenant that only advances, not a COUNT over the rows (two
+-- simultaneous openers would get the same number, and a cancelled order's
+-- gap would be reused).
 --
--- La tabla alberga UNA fila por taller. El caso de uso la reclama con
--- "ON CONFLICT DO NOTHING" (un taller sin ordenes anteriores la recibe sin
--- carrera) y avanza su contador con "FOR UPDATE", de modo que dos aperturas
--- del mismo taller se serializan: la segunda espera y ve el numero ya
--- consumido. La unicidad (tenant_id, number) de V1 queda como defensa en
--- profundidad.
+-- The table holds ONE row per tenant. The use case claims it with
+-- "ON CONFLICT DO NOTHING" (a tenant with no previous orders gets its row
+-- without a race) and advances the counter with "FOR UPDATE", so two
+-- openings of the same tenant serialize: the second waits and sees the
+-- number already consumed. The (tenant_id, number) uniqueness of V1 stays as
+-- defense in depth.
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS work_order_sequences (

@@ -1,35 +1,32 @@
 package com.erp.workorder.domain.model;
 
 /**
- * El correlativo de tarea por taller, en su formato humane: {@code WO-000001}.
- * La unicidad (tenant_id, number) la arbitra la base de datos; este tipo solo
- * le da forma legible al numero que el contador por taller reservo.
+ * The per-tenant correlative number of the order, in its legible format:
+ * {@code WO-000001}. Uniqueness (tenant_id, number) is arbitrated by the
+ * database; this type only gives a readable shape to the number the per
+ * tenant counter reserved.
  */
-public record WorkOrderNumber(int secuencial) {
+public record WorkOrderNumber(int sequence) {
 
-    private static final int SECUENCIA_MINIMA = 1;
-    private static final int DIGITOS = 6;
+    private static final int MIN_SEQUENCE = 1;
+    private static final int DIGITS = 6;
 
     public WorkOrderNumber {
-        if (secuencial < SECUENCIA_MINIMA) {
-            throw new IllegalArgumentException("el correlativo no desciende: se recibio " + secuencial);
+        if (sequence < MIN_SEQUENCE) {
+            throw new IllegalArgumentException("the correlative never goes back: received " + sequence);
         }
     }
 
-    public static WorkOrderNumber of(int secuencial) {
-        return new WorkOrderNumber(secuencial);
+    public static WorkOrderNumber of(int sequence) {
+        return new WorkOrderNumber(sequence);
     }
 
-    public String valor() {
-        return "WO-" + String.format("%0" + DIGITOS + "d", secuencial);
-    }
-
-    public int secuencial() {
-        return secuencial;
+    public String value() {
+        return "WO-" + String.format("%0" + DIGITS + "d", sequence);
     }
 
     @Override
     public String toString() {
-        return valor();
+        return value();
     }
 }

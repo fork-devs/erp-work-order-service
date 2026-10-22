@@ -2,11 +2,11 @@ package com.erp.workorder.domain.model;
 
 import java.util.UUID;
 
-/** Referencia logica al mecanico (auth). Puede quedar sin asignar: es opcional. */
+/** Logical reference to the mechanic (auth). It may stay unassigned: it is optional. */
 public record MechanicRef(UUID id) {
     public MechanicRef {
         if (id == null) {
-            throw new IllegalArgumentException("el mecanico, cuando se asigna, lleva su identificador");
+            throw new IllegalArgumentException("a mechanic, when assigned, carries its identifier");
         }
     }
 }

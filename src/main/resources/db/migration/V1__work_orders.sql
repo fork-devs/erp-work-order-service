@@ -1,29 +1,30 @@
 -- =============================================================================
--- ERP WORK ORDER SERVICE - V1: ORDENES DE TRABAJO, AISLAMIENTO Y ROL DE EJECUCION
+-- ERP WORK ORDER SERVICE - V1: WORK ORDERS, ISOLATION AND EXECUTION ROLE
 -- =============================================================================
--- Las cuatro tablas del modelo documentado (doc-database-diagrams.md, S4) con
--- dos correcciones respecto al DBML original:
+-- The four tables of the documented model (doc-database-diagrams.md, S4) with
+-- two corrections regarding the original DBML:
 --
---   1. work_orders.branch_id NOT NULL: la saga de stock del inventario exige
---      la sucursal del repuesto (branchId es obligatorio en
---      ReserveStockCommand), y la orden la declara al abrirse. La referencia
---      es LOGICA (sin FK cruzada: cada servicio es dueno de su esquema).
---   2. work_order_outbox en su forma madura (la misma del inventario en
---      stock_outbox): evento con event_id unico para que el consumidor
---      deduplique, estado, intentos y next_attempt_at para el relay con
---      reintentos y cola de muertos. La columna published boolean del DBML
---      no permite ninguna de las dos cosas (hallazgo 7.21).--
--- La Row-Level Security se HABILITA y se FUERZA. FORCE solo obliga a que la
--- politica se aplique tambien al propietario; habilitarla es una sentencia
--- distinta y hacen falta las dos.
+--   1. work_orders.branch_id NOT NULL: the inventory stock saga requires the
+--      branch of the part (branchId is mandatory in ReserveStockCommand), and
+--      the order declares it when it opens. The reference is LOGICAL (no
+--      cross-service FK: every service owns its schema).
+--   2. work_order_outbox in its mature shape (the same as the inventory in
+--      stock_outbox): each event carries a unique event_id so consumers can
+--      deduplicate, plus estado, attempts and next_attempt_at for the relay
+--      with retries and dead-letter. The DBML's published boolean column
+--      allowed neither of them (finding 7.21).
 --
--- El contexto de taller se lee SIN el flag "missing_ok": sin contexto, la
--- consulta falla de forma explicita en lugar de devolver cero filas en
--- silencio (hallazgo P1 6.14 / P1 6.53).
+-- Row-Level Security is ENABLED and FORCED. FORCE alone only makes the
+-- policy apply to the table OWNER; enabling is a separate statement and both
+-- are required.
+--
+-- The tenant context is read WITHOUT the "missing_ok" flag: without a
+-- context the query fails explicitly instead of silently returning zero rows
+-- (findings P1 6.14 / P1 6.53).
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 1. work_orders: la orden con su numero reservado por taller
+-- 1. work_orders: the order with its per-tenant reserved number
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS work_orders (
@@ -55,7 +56,7 @@ CREATE POLICY work_order_tenant_isolation ON work_orders
     WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
 
 -- -----------------------------------------------------------------------------
--- 2. work_order_items: los repuestos de la orden, como referencias logicas
+-- 2. work_order_items: the parts of the order, as logical references
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS work_order_items (
@@ -81,7 +82,7 @@ CREATE POLICY work_order_item_tenant_isolation ON work_order_items
 CREATE INDEX IF NOT EXISTS ix_work_order_items_order ON work_order_items (tenant_id, work_order_id);
 
 -- -----------------------------------------------------------------------------
--- 3. work_order_status_history: la historia inmutable, con su autor
+-- 3. work_order_status_history: the immutable history, with its author
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS work_order_status_history (
@@ -110,7 +111,7 @@ CREATE POLICY work_order_history_tenant_isolation ON work_order_status_history
 CREATE INDEX IF NOT EXISTS ix_work_order_history_order ON work_order_status_history (tenant_id, work_order_id, changed_at);
 
 -- -----------------------------------------------------------------------------
--- 4. work_order_outbox: los eventos viajan junto al cambio de estado
+-- 4. work_order_outbox: events travel together with the status change
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS work_order_outbox (
@@ -142,11 +143,11 @@ CREATE POLICY work_order_outbox_tenant_isolation ON work_order_outbox
     USING (tenant_id = current_setting('app.tenant_id')::uuid)
     WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
 
-CREATE INDEX IF NOT EXISTS ix_work_order_outbox_pendientes
+CREATE INDEX IF NOT EXISTS ix_work_order_outbox_pending
     ON work_order_outbox (estado, next_attempt_at);
 
 -- -----------------------------------------------------------------------------
--- 5. Rol de ejecucion: conecta la aplicacion, no es propietario y no elude nada
+-- 5. Execution role: connects the application, is not the owner, bypasses nothing
 -- -----------------------------------------------------------------------------
 
 DO $$
@@ -161,8 +162,7 @@ BEGIN
 END
 $$;
 
--- Sin USAGE sobre el esquema, el rol no resuelve ningun objeto aunque tenga
--- privilegios sobre las tablas.
+-- Without USAGE on the schema the role resolves no object, even with table grants.
 GRANT USAGE ON SCHEMA public TO erp_work_order_app;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE work_orders TO erp_work_order_app;
@@ -170,15 +170,15 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE work_order_items TO erp_work_order
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE work_order_status_history TO erp_work_order_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE work_order_outbox TO erp_work_order_app;
 
--- Comprobacion de que el rol de ejecucion no puede eludir la politica de
--- aislamiento: si pudiera, todo lo anterior seria inerte.
+-- Check that the execution role cannot bypass the isolation policy: if it
+-- could, everything above would be inert.
 DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM pg_roles
         WHERE rolname = 'erp_work_order_app' AND rolbypassrls
     ) THEN
-        RAISE EXCEPTION 'El rol erp_work_order_app no debe tener BYPASSRLS: la politica de aislamiento seria eludible';
+        RAISE EXCEPTION 'The erp_work_order_app role must not have BYPASSRLS: the isolation policy would be bypassable';
     END IF;
 END
 $$;

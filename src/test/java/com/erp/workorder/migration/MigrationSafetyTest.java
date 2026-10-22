@@ -17,18 +17,22 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Verifica que la migracion V1 crea el esquema con el aislamiento prometido:
- * las cuatro tablas existen, la Row-Level Security esta HABILITADA y FUERZADA
- * en todas, la unicidad del correlativo esta declarada y el rol de ejecucion
- * no puede eludir la politica.
+ * Verifies that migration V1 creates the schema with the promised isolation:
+ * the tables exist, Row-Level Security is ENABLED and FORCED on all of them,
+ * the (tenant_id, number) uniqueness is declared and the execution role
+ * cannot bypass the policy.
  *
- * <p>Sustituye al {@code contextLoads} del andamio: un test que solo comprueba
- * que el contexto arranca no demuestra ninguna de las reglas por las que el
- * esquema fue diseñado.
+ * <p>Replaces the scaffold's {@code contextLoads}: a test that only proves the
+ * context starts proves none of the rules the schema was designed for.
+ *
+ * <p>NOTE: the OWNER connection of the embedded PostgreSQL is effective a
+ * superuser, and no RLS applies to a superuser even with FORCE. The owner is
+ * only used here to check the dictionary; the isolation rules get exercised
+ * through the APP role connections (see TenantIsolationTest).
  */
 class MigrationSafetyTest extends AbstractWorkOrderIntegrationTest {
 
-    private static final String[] TABLAS = {
+    private static final String[] TABLES = {
             "work_orders", "work_order_items", "work_order_status_history", "work_order_outbox", "work_order_sequences"
     };
 
@@ -43,25 +47,25 @@ class MigrationSafetyTest extends AbstractWorkOrderIntegrationTest {
     }
 
     @Test
-    void lasCuatroTablasExisten() throws SQLException {
+    void theFiveTablesExist() throws SQLException {
         try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection()) {
-            for (String table : TABLAS) {
-                assertTrue(exists(connection, table), "la tabla " + table + " no existe");
+            for (String table : TABLES) {
+                assertTrue(exists(connection, table), "table " + table + " does not exist");
             }
         }
     }
 
     @Test
-    void rowLevelSecurityEstaHabilitadaYForzada() throws SQLException {
+    void rowLevelSecurityIsEnabledAndForced() throws SQLException {
         try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection()) {
-            for (String table : TABLAS) {
+            for (String table : TABLES) {
                 try (PreparedStatement statement = connection.prepareStatement(
                         "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = ?")) {
                     statement.setString(1, table);
                     try (ResultSet resultSet = statement.executeQuery()) {
-                        assertTrue(resultSet.next(), "no se encontro la tabla " + table);
-                        assertTrue(resultSet.getBoolean(1), table + " sin ENABLE ROW LEVEL SECURITY");
-                        assertTrue(resultSet.getBoolean(2), table + " sin FORCE ROW LEVEL SECURITY");
+                        assertTrue(resultSet.next(), "table " + table + " not found");
+                        assertTrue(resultSet.getBoolean(1), table + " without ENABLE ROW LEVEL SECURITY");
+                        assertTrue(resultSet.getBoolean(2), table + " without FORCE ROW LEVEL SECURITY");
                     }
                 }
             }
@@ -69,22 +73,7 @@ class MigrationSafetyTest extends AbstractWorkOrderIntegrationTest {
     }
 
     @Test
-    void elCorrelativoEsUnicoPorTaller() throws SQLException {
-        try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection()) {
-            try (Statement statement = connection.createStatement();
-                 ResultSet resultSet = statement.executeQuery(
-                         "SELECT COUNT(*) FROM pg_indexes "
-                                 + "WHERE tablename = 'work_orders' "
-                                 + "AND indexdef ILIKE '%UNIQUE%' AND indexdef ILIKE '%tenant_id%' "
-                                 + "AND indexdef ILIKE '%number%'")) {
-                assertTrue(resultSet.next());
-                assertTrue(resultSet.getInt(1) >= 1, "la unicidad (tenant_id, number) no esta declarada");
-            }
-        }
-    }
-
-    @Test
-    void laUnicidadDelCorrelativoRechazaLaRepeticion() throws SQLException {
+    void thePerTenantUniquenessArbitratesTheNumber() throws SQLException {
         UUID tenant = UUID.randomUUID();
         String sql = "INSERT INTO work_orders (tenant_id, number, customer_id, vehicle_id, branch_id, status) "
                 + "VALUES (?, ?, gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'RECEPCIONADA')";
@@ -98,7 +87,7 @@ class MigrationSafetyTest extends AbstractWorkOrderIntegrationTest {
                     repeat.setObject(1, tenant);
                     repeat.setString(2, "WO-000001");
                     assertThrows(SQLException.class, repeat::executeUpdate,
-                            "dos ordenes del mismo taller no pueden llevar el mismo numero");
+                            "two orders of the same tenant cannot carry the same number");
                 }
             } finally {
                 try (Statement cleanup = connection.createStatement()) {
@@ -109,7 +98,7 @@ class MigrationSafetyTest extends AbstractWorkOrderIntegrationTest {
     }
 
     @Test
-    void laTablaDeNumeracionExisteConSuFilaPorTaller() throws SQLException {
+    void theSequenceArbitratesClaimAndAdvance() throws SQLException {
         UUID tenant = UUID.randomUUID();
         String claim = "INSERT INTO work_order_sequences (tenant_id, last_number) VALUES (?, 1) "
                 + "ON CONFLICT (tenant_id) DO NOTHING";
@@ -118,17 +107,17 @@ class MigrationSafetyTest extends AbstractWorkOrderIntegrationTest {
         try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection()) {
             try (PreparedStatement statement = connection.prepareStatement(claim)) {
                 statement.setObject(1, tenant);
-                assertEquals(1, statement.executeUpdate(), "el reclamo de la fila del taller debe crearla");
+                assertEquals(1, statement.executeUpdate(), "the claim must create the tenant row");
             }
             try (PreparedStatement statement = connection.prepareStatement(claim)) {
                 statement.setObject(1, tenant);
-                assertEquals(0, statement.executeUpdate(), "el segundo reclamo no debe duplicar la fila");
+                assertEquals(0, statement.executeUpdate(), "a second claim must not duplicate the row");
             }
             try (PreparedStatement statement = connection.prepareStatement(bump)) {
                 statement.setObject(1, tenant);
                 try (ResultSet resultSet = statement.executeQuery()) {
-                    assertTrue(resultSet.next(), "el incremento debe devolver el numero nuevo");
-                    assertEquals(2, resultSet.getInt(1), "el contador solo avanza");
+                    assertTrue(resultSet.next(), "the advance must return the new number");
+                    assertEquals(2, resultSet.getInt(1), "the counter only advances");
                 }
             }
         } finally {
@@ -140,39 +129,39 @@ class MigrationSafetyTest extends AbstractWorkOrderIntegrationTest {
     }
 
     @Test
-    void elRolDeEjecucionNoPuedeEludirLaPolitica() throws SQLException {
+    void theExecutionRoleCannotBypassThePolicy() throws SQLException {
         try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection()) {
             try (Statement statement = connection.createStatement();
                  ResultSet resultSet = statement.executeQuery(
                          "SELECT rolbypassrls FROM pg_roles WHERE rolname = 'erp_work_order_app'")) {
-                assertTrue(resultSet.next(), "el rol de ejecucion no existe: V1 no le creo");
-                assertFalse(resultSet.getBoolean(1), "el rol de ejecucion no debe tener BYPASSRLS");
+                assertTrue(resultSet.next(), "the execution role does not exist: V1 did not create it");
+                assertFalse(resultSet.getBoolean(1), "the execution role must not carry BYPASSRLS");
             }
         }
     }
 
     @Test
-    void elContextoDeTallerEsObligatorioSinMissingOk() throws SQLException {
+    void theTenantIsolationPolicyExistsWithoutMissingOk() throws SQLException {
         try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection()) {
             try (Statement statement = connection.createStatement();
                  ResultSet resultSet = statement.executeQuery(
                          "SELECT polname FROM pg_policy p "
                                  + "JOIN pg_class c ON c.oid = p.polrelid "
                                  + "WHERE c.relname = 'work_orders'")) {
-                assertTrue(resultSet.next(), "la politica de aislamiento de work_orders no existe");
+                assertTrue(resultSet.next(), "the isolation policy of work_orders does not exist");
             }
         }
     }
 
     @Test
-    void laConsultaSinContextoDeTallerFallaEnLugarDeDevolverCeroFilas() throws SQLException {
+    void aQueryWithoutTenantContextFailsInsteadOfReturningRows() throws SQLException {
         try (Connection connection = EmbeddedPostgresSupport.openAppConnection()) {
             try (Statement statement = connection.createStatement();
                  ResultSet resultSet = statement.executeQuery("SELECT tenant_id FROM work_orders")) {
-                assertFalse(resultSet.next(), "sin contexto la consulta no debe devolver filas");
+                assertFalse(resultSet.next(), "without a context the query must not return rows");
             } catch (SQLException expected) {
-                // Sin el SET app.tenant_id, `current_setting('app.tenant_id')::uuid`
-                // falla de forma explicita: sin contexto no hay lectura.
+                // Without SET app.tenant_id, `current_setting('app.tenant_id')::uuid`
+                // fails explicitly: without a context there is no read.
             }
         }
     }

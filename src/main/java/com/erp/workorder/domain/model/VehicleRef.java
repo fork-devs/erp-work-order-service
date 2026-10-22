@@ -2,11 +2,11 @@ package com.erp.workorder.domain.model;
 
 import java.util.UUID;
 
-/** Referencia logica al vehiculo (fleet). La existencia la verifica fleet al abrir la orden. */
+/** Logical reference to the vehicle (fleet). Fleet verifies its existence when the order opens. */
 public record VehicleRef(UUID id) {
     public VehicleRef {
         if (id == null) {
-            throw new IllegalArgumentException("el vehiculo es obligatorio");
+            throw new IllegalArgumentException("a work order requires a vehicle reference");
         }
     }
 }

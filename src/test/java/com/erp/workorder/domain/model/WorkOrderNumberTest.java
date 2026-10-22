@@ -8,13 +8,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class WorkOrderNumberTest {
 
     @Test
-    void elFormatoEsCorrelativoLegible() {
-        assertEquals("WO-000001", WorkOrderNumber.of(1).valor());
-        assertEquals("WO-000417", WorkOrderNumber.of(417).valor());
+    void theFormatIsALegibleCorrelative() {
+        assertEquals("WO-000001", WorkOrderNumber.of(1).value());
+        assertEquals("WO-000417", WorkOrderNumber.of(417).value());
     }
 
     @Test
-    void elCorrelativoNoDesciende() {
+    void theCorrelativeNeverGoesBack() {
         assertThrows(IllegalArgumentException.class, () -> WorkOrderNumber.of(0));
         assertThrows(IllegalArgumentException.class, () -> WorkOrderNumber.of(-3));
     }
