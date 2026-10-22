@@ -33,6 +33,8 @@ public class WorkOrder {
     private Instant closedAt;
     private final List<WorkOrderItem> items = new ArrayList<>();
     private final List<StatusChange> history = new ArrayList<>();
+    /** How many history entries the persistence layer already wrote; the rest are pending. */
+    private int persistedHistorySize;
 
     /** Creates the order at RECEPCIONADA, its first status, with the opening history entry. */
     public static WorkOrder opened(
@@ -72,6 +74,7 @@ public class WorkOrder {
         order.closedAt = closedAt;
         order.items.addAll(items);
         order.history.addAll(history);
+        order.persistedHistorySize = order.history.size();
         return order;
     }
 
@@ -198,5 +201,15 @@ public class WorkOrder {
     /** The reservation lives only at COTIZADA, so only there can it be released. */
     public boolean hasLiveReservation() {
         return status == WorkOrderStatus.COTIZADA;
+    }
+
+    /** The history entries the persistence layer has not written yet. */
+    public List<StatusChange> unpersistedHistory() {
+        return Collections.unmodifiableList(history.subList(persistedHistorySize, history.size()));
+    }
+
+    /** Called by the repository adapter once the pending history rows are written. */
+    public void markHistoryPersisted() {
+        persistedHistorySize = history.size();
     }
 }

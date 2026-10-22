@@ -10,6 +10,9 @@ import org.springframework.test.context.DynamicPropertySource;
  * <p>Starts a real PostgreSQL in process and connects the application with
  * the EXECUTION role {@code erp_work_order_app}, which is not the owner of
  * the tables. The Flyway migrations run as the owner.
+ *
+ * <p>The test context carries a {@code FakeFleetPort} (support package)
+ * while the real HTTP client does not exist yet.
  */
 @SpringBootTest
 public abstract class AbstractWorkOrderIntegrationTest {
