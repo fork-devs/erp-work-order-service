@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: erp-work-order-service-test
+  # El perfil de test NO define datasource: la configuracion de la base de
+  # datos la inyecta AbstractWorkOrderIntegrationTest, que arranca una
+  # instancia real de PostgreSQL en proceso con las migraciones Flyway
+  # aplicadas y la aplicacion conectando con el rol de EJECUCION (que no es
+  # propietario de las tablas).
+  jpa:
+    show-sql: false
+  flyway:
+    enabled: true
+
+erp:
+  auth:
+    jwks-url: http://127.0.0.1:1/.well-known/jwks.json
+  inventory:
+    base-url: http://127.0.0.1:1
+  fleet:
+    base-url: http://127.0.0.1:1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
