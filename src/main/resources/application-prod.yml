@@ -1,0 +1,61 @@
+# ==============================================================================
+# ERP WORK ORDER SERVICE - PERFIL DE PRODUCCION
+# ==============================================================================
+# El servicio es dueno de su esquema: las migraciones se ejecutan siempre,
+# sin marcar la base como linea base. Con baseline-on-migrate activado, una
+# base ya existente se saltaria las migraciones y la politica de
+# Row-Level Security no llegaria a crearse.
+# ==============================================================================
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    user: ${SPRING_FLYWAY_USER}
+    password: ${SPRING_FLYWAY_PASSWORD}
+    placeholders:
+      appRolePassword: ${ERP_APP_DB_PASSWORD}
+
+erp:
+  auth:
+    jwks-url: ${JWKS_URL}
+
+  # La saga llama al inventario y la apertura verifica contra fleet: sus
+  # plazos y su circuito viven en application.yml, los host por entorno.
+  inventory:
+    base-url: ${INVENTORY_SERVICE_URL}
+  fleet:
+    base-url: ${FLEET_SERVICE_URL}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    enabled: false
+
+logging:
+  level:
+    root: WARN
+    com.erp.workorder: INFO
