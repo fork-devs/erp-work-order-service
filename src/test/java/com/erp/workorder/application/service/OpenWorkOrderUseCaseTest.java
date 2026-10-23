@@ -5,6 +5,7 @@ import com.erp.workorder.application.dto.result.OpenWorkOrderResult;
 import com.erp.workorder.application.exception.VehicleOwnershipMismatchException;
 import com.erp.workorder.application.exception.VehicleUnknownByFleetException;
 import com.erp.workorder.interfaces.rest.support.TenantContextScope;
+import com.erp.workorder.application.exception.FleetUnavailableException;
 import com.erp.workorder.support.AbstractWorkOrderIntegrationTest;
 import com.erp.workorder.support.EmbeddedPostgresSupport;
 import com.erp.workorder.support.FakeFleetPort;
@@ -178,6 +179,24 @@ class OpenWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
              var rows = statement.executeQuery("SELECT count(*) FROM work_orders WHERE tenant_id = '" + tenant + "'")) {
             rows.next();
             assertEquals(0, rows.getInt(1), "the rejected opening must not leave a half-open order");
+        }
+}
+
+    @Test
+    void anOutagedFleetAnswersWithItsAvailabilityCodeAndLeavesNoOrderBehind() throws SQLException {
+        UUID tenant = UUID.randomUUID();
+        UUID vehicle = UUID.randomUUID();
+        fleet.failWith(new FleetUnavailableException("the fleet did not answer within the deadline"));
+
+        FleetUnavailableException failure = assertThrows(FleetUnavailableException.class,
+                () -> openOrder.open(command(tenant, UUID.randomUUID(), vehicle)));
+
+        assertEquals("the fleet did not answer within the deadline", failure.getMessage());
+        try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection();
+             Statement statement = connection.createStatement();
+             var rows = statement.executeQuery("SELECT count(*) FROM work_orders WHERE tenant_id = '" + tenant + "'")) {
+            rows.next();
+            assertEquals(0, rows.getInt(1), "fail-closed: an outage does not open the order");
         }
     }
 }

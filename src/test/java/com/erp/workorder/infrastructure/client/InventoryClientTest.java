@@ -1,6 +1,7 @@
 package com.erp.workorder.infrastructure.client;
 
 import com.erp.workorder.application.exception.InventoryUnavailableException;
+import com.erp.workorder.domain.port.InventoryPort;
 import com.erp.workorder.infrastructure.persistence.rls.TenantContextHolder;
 import com.erp.workorder.infrastructure.security.PrincipalTokenHolder;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -47,14 +48,14 @@ class InventoryClientTest {
     private final UUID order = UUID.randomUUID();
     private final String key = "wo:" + order + ":reserve:" + part;
 
-    private SagaStockOperation reserve;
+    private InventoryPort.StockReservation reserve;
 
     @BeforeEach
     void buildTheClient() {
         restClientBuilder = RestClient.builder();
         server = MockRestServiceServer.bindTo(restClientBuilder).build();
         client = new InventoryClient(restClientBuilder, registry, "http://inventory.test", null);
-        reserve = new SagaStockOperation(part, branch, 2, order, key);
+        reserve = new InventoryPort.StockReservation(part, branch, 2, order, key);
 
         PrincipalTokenHolder.setToken("verified.principal.token");
         TenantContextHolder.setTenantId(UUID.randomUUID());
@@ -74,7 +75,7 @@ class InventoryClientTest {
                 .andExpect(header("X-Tenant-ID", TenantContextHolder.getTenantId().toString()))
                 .andRespond(withSuccess().contentType(org.springframework.http.MediaType.APPLICATION_JSON).body("{\"id\":\"" + UUID.randomUUID() + "\",\"movementType\":\"RESERVE\",\"quantity\":2}"));
 
-        InventoryStockOutcome outcome = client.reserve(reserve);
+        InventoryPort.StockConfirmation outcome = client.reserve(reserve);
 
         assertEquals("RESERVE", outcome.movementType());
         server.verify();
@@ -98,7 +99,7 @@ class InventoryClientTest {
                 .andExpect(header("Authorization", "Bearer verified.principal.token"))
                 .andRespond(withSuccess().contentType(org.springframework.http.MediaType.APPLICATION_JSON).body(bodyWithKey));
 
-        InventoryStockOutcome outcome = client.reserve(reserve);
+        InventoryPort.StockConfirmation outcome = client.reserve(reserve);
 
         assertEquals("RESERVE", outcome.movementType(), "the second attempt carried the unknown outcome home");
         server.verify();
@@ -112,7 +113,7 @@ class InventoryClientTest {
         server.expect(org.springframework.test.web.client.ExpectedCount.once(), requestTo("http://inventory.test/api/v1/inventory/stock/reserve"))
                 .andRespond(withSuccess().contentType(org.springframework.http.MediaType.APPLICATION_JSON).body(body));
 
-        InventoryStockOutcome outcome = client.reserve(reserve);
+        InventoryPort.StockConfirmation outcome = client.reserve(reserve);
 
         assertEquals("RESERVE", outcome.movementType());
         server.verify();

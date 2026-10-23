@@ -2,9 +2,6 @@ package com.erp.workorder.application.service;
 
 import com.erp.workorder.application.dto.command.OpenWorkOrderCommand;
 import com.erp.workorder.application.dto.result.OpenWorkOrderResult;
-import com.erp.workorder.application.exception.VehicleOwnershipMismatchException;
-import com.erp.workorder.application.exception.VehicleUnknownByFleetException;
-import com.erp.workorder.application.logging.SecurityEventLogger;
 import com.erp.workorder.domain.model.BranchId;
 import com.erp.workorder.domain.model.CustomerRef;
 import com.erp.workorder.domain.model.MechanicRef;
@@ -12,14 +9,12 @@ import com.erp.workorder.domain.model.TenantId;
 import com.erp.workorder.domain.model.VehicleRef;
 import com.erp.workorder.domain.model.WorkOrder;
 import com.erp.workorder.domain.model.WorkOrderNumber;
-import com.erp.workorder.domain.port.FleetPort;
 import com.erp.workorder.domain.port.UnitOfWork;
 import com.erp.workorder.domain.port.WorkOrderRepositoryPort;
 import com.erp.workorder.domain.port.WorkOrderSequencePort;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -42,16 +37,16 @@ import java.util.UUID;
 @Component
 public class OpenWorkOrderUseCase {
 
-    private final FleetPort fleet;
+    private final VehicleVerificationService vehicleVerification;
     private final WorkOrderSequencePort sequence;
     private final WorkOrderRepositoryPort repository;
     private final UnitOfWork unitOfWork;
 
-    public OpenWorkOrderUseCase(FleetPort fleet,
+    public OpenWorkOrderUseCase(VehicleVerificationService vehicleVerification,
                                 WorkOrderSequencePort sequence,
                                 WorkOrderRepositoryPort repository,
                                 UnitOfWork unitOfWork) {
-        this.fleet = fleet;
+        this.vehicleVerification = vehicleVerification;
         this.sequence = sequence;
         this.repository = repository;
         this.unitOfWork = unitOfWork;
@@ -83,18 +78,6 @@ public class OpenWorkOrderUseCase {
     }
 
     private void verifyAgainstFleet(OpenWorkOrderCommand command) {
-        var registration = fleet.findVehicle(command.tenantId(), command.vehicleId());
-        if (registration.isEmpty()) {
-            SecurityEventLogger.registrar("apertura_rechazada", command.tenantId(), null, null,
-                    "rechazado", Map.of("motivo", "vehiculo_desconocido_fleet"));
-            throw new VehicleUnknownByFleetException(
-                    "the vehicle is not known by fleet in this tenant: the order is not opened");
-        }
-        if (!registration.get().customerId().equals(command.customerId())) {
-            SecurityEventLogger.registrar("apertura_rechazada", command.tenantId(), null, null,
-                    "rechazado", Map.of("motivo", "vehiculo_de_otro_cliente"));
-            throw new VehicleOwnershipMismatchException(
-                    "the vehicle is not registered to the customer of the command: the order is not opened");
-        }
+        vehicleVerification.verifyOpening(command.tenantId(), command.vehicleId(), command.customerId());
     }
 }
