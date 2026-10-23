@@ -33,5 +33,10 @@ public abstract class AbstractWorkOrderIntegrationTest {
 
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
         registry.add("spring.flyway.enabled", () -> "true");
+
+        // The service validates the token against the credential issuer's
+        // JWKS. The tests start their OWN issuer, so the tokens in use are
+        // really signed.
+        registry.add("erp.auth.jwks-url", com.erp.workorder.support.TestJwksServer::jwksUrl);
     }
 }

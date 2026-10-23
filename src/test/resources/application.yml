@@ -1,4 +1,8 @@
 spring:
+  profiles:
+    # The dev profile is the ONE the platform admits for a cleartext JWKS
+    # URL: every test context downloads the keys from the test issuer.
+    active: dev
   application:
     name: erp-work-order-service-test
   # El perfil de test NO define datasource: la configuracion de la base de
