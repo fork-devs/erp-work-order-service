@@ -77,5 +77,10 @@ public class TransitionWorkOrderUseCase {
                     "the quotation reserves the stock through its own use case: the generic transition "
                             + "does not bypass the reservation");
         }
+        if (origin == WorkOrderStatus.COTIZADA && destination == WorkOrderStatus.EN_EJECUCION) {
+            throw new SagaReservedTransitionException(
+                    "the approval commits the reserved stock through its own use case: the generic transition "
+                            + "does not bypass the consumption");
+        }
     }
 }
