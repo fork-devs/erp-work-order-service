@@ -2,9 +2,11 @@ package com.erp.workorder.application.service;
 
 import com.erp.workorder.application.dto.command.TransitionWorkOrderCommand;
 import com.erp.workorder.application.dto.result.TransitionWorkOrderResult;
+import com.erp.workorder.application.exception.SagaReservedTransitionException;
 import com.erp.workorder.application.exception.WorkOrderNotFoundException;
 import com.erp.workorder.application.logging.SecurityEventLogger;
 import com.erp.workorder.domain.model.WorkOrder;
+import com.erp.workorder.domain.model.WorkOrderStatus;
 import com.erp.workorder.domain.port.UnitOfWork;
 import com.erp.workorder.domain.port.WorkOrderRepositoryPort;
 import org.springframework.stereotype.Component;
@@ -45,6 +47,8 @@ public class TransitionWorkOrderUseCase {
                         return new WorkOrderNotFoundException("the order does not exist in this tenant");
                     });
 
+            rejectReservedSagaTransitions(order.status(), command.destination());
+
             order.transitionTo(command.destination(), command.changedBy(), Instant.now());
 
             repository.updateStatus(order);
@@ -59,5 +63,19 @@ public class TransitionWorkOrderUseCase {
                     transition.origin(),
                     order.closedAt().orElse(null));
         });
+    }
+
+    /**
+     * The machine may declare a transition, but when its baggage is the
+     * stock saga it runs ONLY through its own use case. The generic door
+     * refuses it here — BEFORE any write — so nobody bypasses the
+     * reservation by calling the free path.
+     */
+    private void rejectReservedSagaTransitions(WorkOrderStatus origin, WorkOrderStatus destination) {
+        if (origin == WorkOrderStatus.EN_DIAGNOSTICO && destination == WorkOrderStatus.COTIZADA) {
+            throw new SagaReservedTransitionException(
+                    "the quotation reserves the stock through its own use case: the generic transition "
+                            + "does not bypass the reservation");
+        }
     }
 }

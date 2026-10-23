@@ -5,6 +5,7 @@ import com.erp.workorder.application.dto.command.TransitionWorkOrderCommand;
 import com.erp.workorder.application.dto.result.OpenWorkOrderResult;
 import com.erp.workorder.domain.model.WorkOrderStatus;
 import com.erp.workorder.interfaces.rest.support.TenantContextScope;
+import com.erp.workorder.application.dto.command.QuoteWorkOrderCommand;
 import com.erp.workorder.support.AbstractWorkOrderIntegrationTest;
 import com.erp.workorder.support.EmbeddedPostgresSupport;
 import com.erp.workorder.support.FakeFleetPort;
@@ -34,6 +35,9 @@ class CancelledOrderNumberNotReusedTest extends AbstractWorkOrderIntegrationTest
 
     @Autowired
     private TransitionWorkOrderUseCase transition;
+
+    @Autowired
+    private QuoteWorkOrderUseCase quoteOrder;
 
     @Autowired
     private FakeFleetPort fleet;
@@ -75,8 +79,10 @@ class CancelledOrderNumberNotReusedTest extends AbstractWorkOrderIntegrationTest
         // RECEPCIONADA -> EN_DIAGNOSTICO -> COTIZADA -> CANCELADA
         asRequest(tenant, () -> transition.transition(new TransitionWorkOrderCommand(
                 tenant, cancelled.orderId(), WorkOrderStatus.EN_DIAGNOSTICO, UUID.randomUUID())));
-        asRequest(tenant, () -> transition.transition(new TransitionWorkOrderCommand(
-                tenant, cancelled.orderId(), WorkOrderStatus.COTIZADA, UUID.randomUUID())));
+        // EN_DIAGNOSTICO -> COTIZADA belongs to the stock saga: it runs
+        // through the quote use case, never through the generic transition.
+        asRequest(tenant, () -> quoteOrder.quote(new QuoteWorkOrderCommand(
+                tenant, cancelled.orderId(), UUID.randomUUID())));
         asRequest(tenant, () -> transition.transition(new TransitionWorkOrderCommand(
                 tenant, cancelled.orderId(), WorkOrderStatus.CANCELADA, UUID.randomUUID())));
 

@@ -1,6 +1,7 @@
 package com.erp.workorder.application.service;
 
 import com.erp.workorder.application.dto.command.OpenWorkOrderCommand;
+import com.erp.workorder.application.dto.command.QuoteWorkOrderCommand;
 import com.erp.workorder.application.dto.command.TransitionWorkOrderCommand;
 import com.erp.workorder.application.dto.result.OpenWorkOrderResult;
 import com.erp.workorder.application.dto.result.TransitionWorkOrderResult;
@@ -37,6 +38,9 @@ class TransitionWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
 
     @Autowired
     private TransitionWorkOrderUseCase transitionOrder;
+
+    @Autowired
+    private QuoteWorkOrderUseCase quoteOrder;
 
     @Autowired
     private FakeFleetPort fleet;
@@ -124,8 +128,9 @@ class TransitionWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
 
         asRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(
                 tenant, orderId, WorkOrderStatus.EN_DIAGNOSTICO, actor)));
-        asRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(
-                tenant, orderId, WorkOrderStatus.COTIZADA, actor)));
+        // EN_DIAGNOSTICO -> COTIZADA belongs to the stock saga: the generic
+        // transition refuses to bypass the reservation.
+        asRequest(tenant, () -> quoteOrder.quote(new QuoteWorkOrderCommand(tenant, orderId, actor)));
         asRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(
                 tenant, orderId, WorkOrderStatus.EN_EJECUCION, actor)));
         asRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(

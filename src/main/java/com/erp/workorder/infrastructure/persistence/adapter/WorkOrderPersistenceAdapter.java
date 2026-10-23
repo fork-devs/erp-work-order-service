@@ -5,6 +5,7 @@ import com.erp.workorder.domain.model.StatusChange;
 import com.erp.workorder.domain.model.WorkOrder;
 import com.erp.workorder.domain.model.WorkOrderStatus;
 import com.erp.workorder.domain.port.WorkOrderRepositoryPort;
+import com.erp.workorder.infrastructure.persistence.entity.WorkOrderItemJpaEntity;
 import com.erp.workorder.infrastructure.persistence.entity.WorkOrderJpaEntity;
 import com.erp.workorder.infrastructure.persistence.mapper.WorkOrderPersistenceMapper;
 import com.erp.workorder.infrastructure.persistence.repository.SpringDataWorkOrderHistoryRepository;
@@ -71,11 +72,16 @@ public class WorkOrderPersistenceAdapter implements WorkOrderRepositoryPort {
             entity.setDiagnosis(order.diagnosis());
             entity.setMechanicId(order.mechanic().map(MechanicRef::id).orElse(null));
             entity.setClosedAt(order.closedAt().orElse(null));
-            // The aggregate owns its items: the stored collection is substituted
-            // wholesale, so additions since the last write persist and removals
-            // disappear (orphanRemoval with cascade).
-            entity.getItems().clear();
-            entity.getItems().addAll(WorkOrderPersistenceMapper.toItemEntities(entity, order.items()));
+            // The aggregate owns its items, but the substitute-wholesale write
+            // carries a delete/insert race when two transitions run concurrently:
+            // the stored collection only moves when the content actually differs,
+            // so an unchanged quote writes NOTHING over the items.
+            List<WorkOrderItemJpaEntity> stored = entity.getItems();
+            List<WorkOrderItemJpaEntity> wanted = WorkOrderPersistenceMapper.toItemEntities(entity, order.items());
+            if (itemContentsDiffer(stored, wanted)) {
+                stored.clear();
+                stored.addAll(wanted);
+            }
             orders.saveAndFlush(entity);
             List<StatusChange> pending = order.unpersistedHistory();
             if (!pending.isEmpty()) {
@@ -83,5 +89,27 @@ public class WorkOrderPersistenceAdapter implements WorkOrderRepositoryPort {
             }
             order.markHistoryPersisted();
         });
+    }
+
+    /**
+     * Whether the stored item rows and the aggregate's item list carry
+     * DIFFERENT content (part, quantity, price), ignoring row ids: only a
+     * real change rewrites the collection.
+     */
+    private static boolean itemContentsDiffer(List<WorkOrderItemJpaEntity> stored,
+                                              List<WorkOrderItemJpaEntity> wanted) {
+        if (stored.size() != wanted.size()) {
+            return true;
+        }
+        for (int i = 0; i < stored.size(); i++) {
+            WorkOrderItemJpaEntity a = stored.get(i);
+            WorkOrderItemJpaEntity b = wanted.get(i);
+            if (!java.util.Objects.equals(a.getSparePartId(), b.getSparePartId())
+                    || a.getQuantity() != b.getQuantity()
+                    || a.getLaborPrice().compareTo(b.getLaborPrice()) != 0) {
+                return true;
+            }
+        }
+        return false;
     }
 }

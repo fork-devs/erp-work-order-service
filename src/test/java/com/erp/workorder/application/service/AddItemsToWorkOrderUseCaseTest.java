@@ -6,7 +6,9 @@ import com.erp.workorder.application.dto.command.WorkOrderItemCommand;
 import com.erp.workorder.application.dto.result.OpenWorkOrderResult;
 import com.erp.workorder.domain.model.WorkOrderStatus;
 import com.erp.workorder.interfaces.rest.support.TenantContextScope;
+import com.erp.workorder.application.service.QuoteWorkOrderUseCase;
 import com.erp.workorder.support.AbstractWorkOrderIntegrationTest;
+import com.erp.workorder.support.FakeInventoryPort;
 import com.erp.workorder.support.EmbeddedPostgresSupport;
 import com.erp.workorder.support.FakeFleetPort;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +43,9 @@ class AddItemsToWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
 
     @Autowired
     private com.erp.workorder.application.service.TransitionWorkOrderUseCase readOnlyTransition;
+
+    @Autowired
+    private QuoteWorkOrderUseCase quoteOrder;
 
     @Autowired
     private FakeFleetPort fleet;
@@ -147,6 +152,15 @@ class AddItemsToWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
     }
 
     private void transitionTo(UUID tenant, UUID orderId, WorkOrderStatus destination) {
+        if (destination == WorkOrderStatus.COTIZADA) {
+            // EN_DIAGNOSTICO -&gt; COTIZADA belongs to the stock saga: the
+            // generic transition refuses to bypass the reservation.
+            try (TenantContextScope scope = TenantContextScope.forTenant(tenant)) {
+                quoteOrder.quote(new com.erp.workorder.application.dto.command.QuoteWorkOrderCommand(
+                        tenant, orderId, UUID.randomUUID()));
+            }
+            return;
+        }
         try (TenantContextScope scope = TenantContextScope.forTenant(tenant)) {
             readOnlyTransition.transition(new com.erp.workorder.application.dto.command.TransitionWorkOrderCommand(
                     tenant, orderId, destination, UUID.randomUUID()));
