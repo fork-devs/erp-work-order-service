@@ -8,6 +8,7 @@ import com.erp.workorder.application.logging.SecurityEventLogger;
 import com.erp.workorder.domain.model.WorkOrder;
 import com.erp.workorder.domain.model.WorkOrderStatus;
 import com.erp.workorder.domain.port.UnitOfWork;
+import com.erp.workorder.domain.port.WorkOrderOutboxPort;
 import com.erp.workorder.domain.port.WorkOrderRepositoryPort;
 import org.springframework.stereotype.Component;
 
@@ -29,10 +30,17 @@ import java.util.Map;
 public class TransitionWorkOrderUseCase {
 
     private final WorkOrderRepositoryPort repository;
+    private final WorkOrderOutboxPort outbox;
+    private final WorkOrderOutboxEventFactory events;
     private final UnitOfWork unitOfWork;
 
-    public TransitionWorkOrderUseCase(WorkOrderRepositoryPort repository, UnitOfWork unitOfWork) {
+    public TransitionWorkOrderUseCase(WorkOrderRepositoryPort repository,
+                                      WorkOrderOutboxPort outbox,
+                                      WorkOrderOutboxEventFactory events,
+                                      UnitOfWork unitOfWork) {
         this.repository = repository;
+        this.outbox = outbox;
+        this.events = events;
         this.unitOfWork = unitOfWork;
     }
 
@@ -52,6 +60,7 @@ public class TransitionWorkOrderUseCase {
             order.transitionTo(command.destination(), command.changedBy(), Instant.now());
 
             repository.updateStatus(order);
+            recordOutboxEvent(command, order);
 
             // After a successful transitionTo the last history entry always
             // carries its transition; its origin is the status before the move.
@@ -63,6 +72,20 @@ public class TransitionWorkOrderUseCase {
                     transition.origin(),
                     order.closedAt().orElse(null));
         });
+    }
+
+    /**
+     * The delivery and the cancellation leave the outbox inside the SAME
+     * transaction: the event row and the history row commit together, so a
+     * consumer never misses the status change and the bus never receives
+     * one the status did not confirm.
+     */
+    private void recordOutboxEvent(TransitionWorkOrderCommand command, WorkOrder order) {
+        if (command.destination() == WorkOrderStatus.ENTREGADA) {
+            outbox.record(events.completed(command.tenantId(), order.id(), Instant.now()));
+        } else if (command.destination() == WorkOrderStatus.CANCELADA) {
+            outbox.record(events.cancelled(command.tenantId(), order.id(), Instant.now()));
+        }
     }
 
     /**

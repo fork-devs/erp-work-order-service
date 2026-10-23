@@ -7,6 +7,7 @@ import com.erp.workorder.application.logging.SecurityEventLogger;
 import com.erp.workorder.domain.model.WorkOrder;
 import com.erp.workorder.domain.model.WorkOrderStatus;
 import com.erp.workorder.domain.port.UnitOfWork;
+import com.erp.workorder.domain.port.WorkOrderOutboxPort;
 import com.erp.workorder.domain.port.WorkOrderRepositoryPort;
 import org.springframework.stereotype.Component;
 
@@ -27,13 +28,19 @@ public class CancelWorkOrderUseCase {
 
     private final WorkOrderRepositoryPort repository;
     private final ReservationReleaseService release;
+    private final WorkOrderOutboxPort outbox;
+    private final WorkOrderOutboxEventFactory events;
     private final UnitOfWork unitOfWork;
 
     public CancelWorkOrderUseCase(WorkOrderRepositoryPort repository,
                                   ReservationReleaseService release,
+                                  WorkOrderOutboxPort outbox,
+                                  WorkOrderOutboxEventFactory events,
                                   UnitOfWork unitOfWork) {
         this.repository = repository;
         this.release = release;
+        this.outbox = outbox;
+        this.events = events;
         this.unitOfWork = unitOfWork;
     }
 
@@ -59,6 +66,10 @@ public class CancelWorkOrderUseCase {
 
             order.transitionTo(DESTINATION, command.changedBy(), Instant.now());
             repository.updateStatus(order);
+
+            // The cancelled event leaves inside the SAME transaction: the
+            // hub learns of the cancellation FROM a committed state.
+            outbox.record(events.cancelled(command.tenantId(), order.id(), Instant.now()));
 
             var transition = order.history().get(order.history().size() - 1).transition();
             return new CancelWorkOrderResult(order.id(), order.status(), transition.origin());
