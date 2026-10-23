@@ -62,6 +62,16 @@ public final class WorkOrderPersistenceMapper {
         return entity;
     }
 
+    /** The full item collection of the aggregate, ready to replace the stored one. */
+    public static List<WorkOrderItemJpaEntity> toItemEntities(WorkOrderJpaEntity order,
+                                                              List<WorkOrderItem> items) {
+        List<WorkOrderItemJpaEntity> rows = new ArrayList<>();
+        for (WorkOrderItem item : items) {
+            rows.add(toEntity(order, item));
+        }
+        return rows;
+    }
+
     /**
      * The history rows of the order: the opening entry carries a null origin
      * (no previous status), every transition carries origin and destination.

@@ -4,7 +4,7 @@ import com.erp.workorder.application.dto.command.AddItemsToWorkOrderCommand;
 import com.erp.workorder.application.dto.command.OpenWorkOrderCommand;
 import com.erp.workorder.application.dto.command.WorkOrderItemCommand;
 import com.erp.workorder.application.dto.result.OpenWorkOrderResult;
-import com.erp.workorder.domain.port.UnitOfWork;
+import com.erp.workorder.domain.model.WorkOrderStatus;
 import com.erp.workorder.interfaces.rest.support.TenantContextScope;
 import com.erp.workorder.support.AbstractWorkOrderIntegrationTest;
 import com.erp.workorder.support.EmbeddedPostgresSupport;
@@ -40,6 +40,9 @@ class AddItemsToWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
     private AddItemsToWorkOrderUseCase addItems;
 
     @Autowired
+    private com.erp.workorder.application.service.TransitionWorkOrderUseCase readOnlyTransition;
+
+    @Autowired
     private FakeFleetPort fleet;
 
     @BeforeEach
@@ -61,8 +64,15 @@ class AddItemsToWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
     }
 
     private OpenWorkOrderResult openedOrder(UUID tenant) {
+        UUID customer = UUID.randomUUID();
+        UUID vehicle = UUID.randomUUID();
+        fleet.registerVehicle(tenant, vehicle, customer);
         return asRequest(tenant, () -> openOrder.open(new OpenWorkOrderCommand(
-                tenant, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null)));
+                tenant, customer, vehicle, UUID.randomUUID(), UUID.randomUUID(), null)));
+    }
+
+    private UUID openedOrderId(UUID tenant) {
+        return openedOrder(tenant).orderId();
     }
 
     private AddItemsToWorkOrderCommand withItems(UUID tenant, UUID orderId, WorkOrderItemCommand... items) {
@@ -72,7 +82,7 @@ class AddItemsToWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
     @Test
     void aSparePartTheInventoryDoesNotKnowIsRegisteredAnyway() throws SQLException {
         UUID tenant = UUID.randomUUID();
-        UUID order = orderIdOf(openedOrder(tenant)).orderId();
+        UUID order = openedOrderId(tenant);
         UUID unknownPart = UUID.randomUUID();
 
         List<UUID> registered = asRequest(tenant, () -> addItems.addItems(
@@ -96,7 +106,7 @@ class AddItemsToWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
     @Test
     void twoDifferentPartsAreBothRegistered() {
         UUID tenant = UUID.randomUUID();
-        UUID order = orderIdOf(openedOrder(tenant)).orderId();
+        UUID order = openedOrderId(tenant);
         UUID firstPart = UUID.randomUUID();
         UUID secondPart = UUID.randomUUID();
 
@@ -111,9 +121,12 @@ class AddItemsToWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
     @Test
     void anOrderInQuoteStateAcceptsNoMoreItems() {
         UUID tenant = UUID.randomUUID();
-        UUID order = orderIdOf(openedOrder(tenant)).orderId();
+        UUID order = openedOrderId(tenant);
         asRequest(tenant, () -> addItems.addItems(
                 withItems(tenant, order, new WorkOrderItemCommand(UUID.randomUUID(), 1, BigDecimal.ZERO))));
+        // RECEPCIONADA -> EN_DIAGNOSTICO -> COTIZADA: the quote reserved the stock.
+        transitionTo(tenant, order, WorkOrderStatus.EN_DIAGNOSTICO);
+        transitionTo(tenant, order, WorkOrderStatus.COTIZADA);
 
         assertThrows(IllegalStateException.class, () -> asRequest(tenant, () -> addItems.addItems(
                 withItems(tenant, order, new WorkOrderItemCommand(UUID.randomUUID(), 1, BigDecimal.ZERO)))),
@@ -124,12 +137,19 @@ class AddItemsToWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
     void anOrderOfAnotherTenantIsNotFound() {
         UUID tenantA = UUID.randomUUID();
         UUID tenantB = UUID.randomUUID();
-        UUID orderOfA = orderIdOf(openedOrder(tenantA)).orderId();
+        UUID orderOfA = openedOrderId(tenantA);
 
         assertThrows(com.erp.workorder.application.exception.WorkOrderNotFoundException.class,
                 () -> asRequest(tenantB, () -> addItems.addItems(withItems(
                         tenantB, orderOfA,
                         new WorkOrderItemCommand(UUID.randomUUID(), 1, BigDecimal.ZERO)))),
                 "the absence is indistinguishable from a foreign order");
+    }
+
+    private void transitionTo(UUID tenant, UUID orderId, WorkOrderStatus destination) {
+        try (TenantContextScope scope = TenantContextScope.forTenant(tenant)) {
+            readOnlyTransition.transition(new com.erp.workorder.application.dto.command.TransitionWorkOrderCommand(
+                    tenant, orderId, destination, UUID.randomUUID()));
+        }
     }
 }

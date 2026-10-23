@@ -71,7 +71,12 @@ public class WorkOrderPersistenceAdapter implements WorkOrderRepositoryPort {
             entity.setDiagnosis(order.diagnosis());
             entity.setMechanicId(order.mechanic().map(MechanicRef::id).orElse(null));
             entity.setClosedAt(order.closedAt().orElse(null));
-            orders.save(entity);
+            // The aggregate owns its items: the stored collection is substituted
+            // wholesale, so additions since the last write persist and removals
+            // disappear (orphanRemoval with cascade).
+            entity.getItems().clear();
+            entity.getItems().addAll(WorkOrderPersistenceMapper.toItemEntities(entity, order.items()));
+            orders.saveAndFlush(entity);
             List<StatusChange> pending = order.unpersistedHistory();
             if (!pending.isEmpty()) {
                 history.saveAll(WorkOrderPersistenceMapper.toHistoryEntities(order, pending));
