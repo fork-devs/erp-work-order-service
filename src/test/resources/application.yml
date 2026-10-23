@@ -16,6 +16,11 @@ erp:
     jwks-url: http://127.0.0.1:1/.well-known/jwks.json
   inventory:
     base-url: http://127.0.0.1:1
+
+  outbox:
+    # OFF for determinism: the tests drive the relay themselves; a running
+    # schedule could publish a pending event before its assertions.
+    relay-enabled: false
   fleet:
     base-url: http://127.0.0.1:1
 

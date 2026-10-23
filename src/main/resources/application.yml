@@ -64,6 +64,16 @@ erp:
   fleet:
     base-url: ${FLEET_SERVICE_URL:http://localhost:8083}
 
+  outbox:
+    # The relay sweeps, publishes and retries INSIDE the service; the poll
+    # keeps the platform's degraded mode in mind (growing backoff, capped
+    # delay, dead-letter queue reprocessable by SUPERADMIN).
+    relay-enabled: ${OUTBOX_RELAY_ENABLED:true}
+    poll-millis: ${OUTBOX_POLL_MILLIS:5000}
+    batch-size: ${OUTBOX_BATCH_SIZE:20}
+    max-attempts: ${OUTBOX_MAX_ATTEMPTS:7}
+    max-delay-seconds: ${OUTBOX_MAX_DELAY_SECONDS:86400}
+
 springdoc:
   api-docs:
     path: /v3/api-docs
