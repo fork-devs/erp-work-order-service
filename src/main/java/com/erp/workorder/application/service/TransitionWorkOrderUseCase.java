@@ -3,7 +3,6 @@ package com.erp.workorder.application.service;
 import com.erp.workorder.application.dto.command.TransitionWorkOrderCommand;
 import com.erp.workorder.application.dto.result.TransitionWorkOrderResult;
 import com.erp.workorder.application.exception.WorkOrderNotFoundException;
-import com.erp.workorder.domain.model.InvalidWorkOrderTransitionException;
 import com.erp.workorder.domain.model.WorkOrder;
 import com.erp.workorder.domain.port.UnitOfWork;
 import com.erp.workorder.domain.port.WorkOrderRepositoryPort;
