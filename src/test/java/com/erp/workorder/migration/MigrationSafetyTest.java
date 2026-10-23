@@ -18,9 +18,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Verifies that migration V1 creates the schema with the promised isolation:
- * the tables exist, Row-Level Security is ENABLED and FORCED on all of them,
- * the (tenant_id, number) uniqueness is declared and the execution role
- * cannot bypass the policy.
+ * the tables exist, Row-Level Security is ENABLED and FORCED on the tenant
+ * tables, the (tenant_id, number) uniqueness is declared and the execution
+ * role cannot bypass the policy. The outbox is the exception on purpose: V3
+ * declares it the service's internal queue, swept across tenants by the relay.
  *
  * <p>Replaces the scaffold's {@code contextLoads}: a test that only proves the
  * context starts proves none of the rules the schema was designed for.
@@ -32,9 +33,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class MigrationSafetyTest extends AbstractWorkOrderIntegrationTest {
 
+    /** The tables the TENANT reads: RLS forced on all of them. */
     private static final String[] TABLES = {
-            "work_orders", "work_order_items", "work_order_status_history", "work_order_outbox", "work_order_sequences"
+            "work_orders", "work_order_items", "work_order_status_history", "work_order_sequences"
     };
+
+    /**
+     * The outbox is the service's INTERNAL queue (V3): the relay sweeps the
+     * pending events of ALL tenants, so it carries NO tenant isolation — the
+     * same criterion of the inventory's stock_outbox. No endpoint exposes it
+     * to the tenants.
+     */
+    private static final String OUTBOX_TABLE = "work_order_outbox";
 
     private static boolean exists(Connection connection, String table) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
@@ -68,6 +78,26 @@ class MigrationSafetyTest extends AbstractWorkOrderIntegrationTest {
                         assertTrue(resultSet.getBoolean(2), table + " without FORCE ROW LEVEL SECURITY");
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * The outbox is the one table WITHOUT tenant isolation: it is the
+     * service's internal queue the relay sweeps across tenants. A tenant-
+     * isolated outbox would make the sweep physically impossible under the
+     * strict policy, and no endpoint exposes the queue to the tenants.
+     */
+    @Test
+    void theOutboxIsTheServiceInternalQueueWithoutTenantIsolation() throws SQLException {
+        try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = ?")) {
+            statement.setString(1, OUTBOX_TABLE);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                assertTrue(resultSet.next(), "the outbox table not found");
+                assertFalse(resultSet.getBoolean(1), "the outbox must NOT isolate tenants: the relay sweeps all of them");
+                assertFalse(resultSet.getBoolean(2), "the outbox must NOT force RLS either");
             }
         }
     }
