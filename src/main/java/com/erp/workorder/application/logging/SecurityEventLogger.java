@@ -53,6 +53,14 @@ public final class SecurityEventLogger {
         if (extra != null) {
             extra.forEach((key, value) -> {
                 if (key != null && !key.isBlank() && value != null) {
+                    if (isForbiddenKey(key)) {
+                        // Fail closed: an attribute that smells like a
+                        // credential stops the event. An audit log holding
+                        // credentials is a credential store.
+                        throw new IllegalArgumentException(
+                                "The security event's schema admits no credentials, tokens or "
+                                + "passwords: the attribute '" + key + "' is forbidden.");
+                    }
                     attributes.put(key, value);
                 }
             });
@@ -60,5 +68,21 @@ public final class SecurityEventLogger {
         return String.join(" ", attributes.entrySet().stream()
                 .map(entry -> entry.getKey() + "=" + entry.getValue())
                 .toList());
+    }
+
+    /**
+     * The schema's forbidden names: a credential attribute would turn the
+     * audit log into a credential store (the worst possible one).
+     */
+    private static boolean isForbiddenKey(String key) {
+        String normalized = key.toLowerCase().replace("_", "");
+        return normalized.equals("password") || normalized.equals("contrasena" )
+                || normalized.equals("contrasenia") || normalized.equals("passwd")
+                || normalized.equals("token") || normalized.equals("accesstoken")
+                || normalized.equals("bearertoken") || normalized.equals("bearer")
+                || normalized.equals("authorization") || normalized.equals("secret")
+                || normalized.equals("clientsecret") || normalized.equals("credencial")
+                || normalized.equals("credential") || normalized.equals("apikey")
+                || normalized.equals("jwt") || normalized.equals("refreshtoken");
     }
 }
