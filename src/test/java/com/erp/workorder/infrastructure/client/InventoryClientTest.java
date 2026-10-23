@@ -89,19 +89,35 @@ class InventoryClientTest {
         server.verify();
     }
 
+    /**
+     * The 6.8 guarantee: the first call cut mid-flight MIGHT have reached
+     * the inventory — its claim may be registered. The retry travels with
+     * the SAME key, and the outcome that arrives home is the inventory's
+     * REGISTERED movement (the same one the first call produced), never a
+     * guess or a second reservation.
+     */
     @Test
-    void aTimeoutIsRetriedOnceWithTheSameIdempotencyKey() {
-        String bodyWithKey = "{\"id\":\"" + UUID.randomUUID() + "\",\"movementType\":\"RESERVE\",\"quantity\":2}";
+    void anUnknownOutcomeIsArbitratedByTheClaimAndTheRegisteredResultArrivesHome() {
+        // The inventory processed the first reserve and claimed its
+        // movement — the client never saw the answer (the cut).
+        String registeredMovement = "{\"id\":\"11111111-2222-3333-4444-555555555555\","
+                + "\"movementType\":\"RESERVE\",\"quantity\":2,"
+                + "\"idempotencyKey\":\"" + key + "\"}";
         server.expect(org.springframework.test.web.client.ExpectedCount.once(), requestTo("http://inventory.test/api/v1/inventory/stock/reserve"))
                 .andRespond(withException(new SocketTimeoutException("read timed out")));
+        // The retry: same key in the SAME body; the inventory's claim
+        // answers with the REGISTERED movement instead of a new one.
         server.expect(org.springframework.test.web.client.ExpectedCount.once(), requestTo("http://inventory.test/api/v1/inventory/stock/reserve"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("\"" + key + "\"")))
                 .andExpect(header("Authorization", "Bearer verified.principal.token"))
-                .andRespond(withSuccess().contentType(org.springframework.http.MediaType.APPLICATION_JSON).body(bodyWithKey));
+                .andRespond(withSuccess().contentType(org.springframework.http.MediaType.APPLICATION_JSON).body(registeredMovement));
 
         InventoryPort.StockConfirmation outcome = client.reserve(reserve);
 
         assertEquals("RESERVE", outcome.movementType(), "the second attempt carried the unknown outcome home");
+        assertEquals("11111111-2222-3333-4444-555555555555", outcome.movementId().toString(),
+                "the outcome is the inventory's registered movement, not a fresh one");
+        assertEquals(2, outcome.quantity());
         server.verify();
     }
 
