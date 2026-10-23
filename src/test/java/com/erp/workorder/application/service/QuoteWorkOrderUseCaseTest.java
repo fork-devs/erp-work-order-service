@@ -117,9 +117,11 @@ class QuoteWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
     @Test
     void aBusinessRejectionOfTheReservationLeavesTheOrderExactlyWhereItWas() throws SQLException {
         UUID tenant = UUID.randomUUID();
+        UUID part = UUID.randomUUID();
         UUID order = orderUnderDiagnosis(tenant, UUID.randomUUID(),
-                new WorkOrderItemCommand(UUID.randomUUID(), 2, new BigDecimal("80.00")));
+                new WorkOrderItemCommand(part, 2, new BigDecimal("80.00")));
         int historyBefore = count("work_order_status_history", order);
+        int itemsBefore = count("work_order_items", order);
 
         inventory.rejectNext(new StockOperationRejectedException("the inventory has no available stock", "{}"));
 
@@ -131,6 +133,9 @@ class QuoteWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
         assertEquals("EN_DIAGNOSTICO", statusOf(order), "the order keeps the previous status");
         assertEquals(historyBefore, count("work_order_status_history", order),
                 "no quotation history row was written");
+        assertEquals(itemsBefore, count("work_order_items", order),
+                "the order's relationships are exactly what they were");
+        assertTrue(itemExists(order, part, 2), "the registered item keeps its quantity and price");
         assertTrue(inventory.claimedMovements().isEmpty(),
                 "a failed reserve claims no movement in the inventory");
     }
@@ -272,6 +277,17 @@ class QuoteWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
             return rows.getString(1);
         } catch (SQLException e) {
             throw new IllegalStateException(e);
+        }
+    }
+
+    private boolean itemExists(UUID orderId, UUID partId, int quantity) throws SQLException {
+        try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection();
+             Statement statement = connection.createStatement();
+             ResultSet rows = statement.executeQuery(
+                     "SELECT count(*) FROM work_order_items WHERE work_order_id = '" + orderId
+                             + "' AND spare_part_id = '" + partId + "' AND quantity = " + quantity)) {
+            rows.next();
+            return rows.getInt(1) == 1;
         }
     }
 }

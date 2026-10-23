@@ -120,10 +120,12 @@ class ApproveQuoteUseCaseTest extends AbstractWorkOrderIntegrationTest {
     @Test
     void aRejectedCommitLeavesTheOrderQuotedWithItsLiveReservation() throws SQLException {
         UUID tenant = UUID.randomUUID();
+        UUID part = UUID.randomUUID();
         UUID order = quotedOrder(tenant, UUID.randomUUID(),
-                new WorkOrderItemCommand(UUID.randomUUID(), 2, new BigDecimal("80.00")));
+                new WorkOrderItemCommand(part, 2, new BigDecimal("80.00")));
         int claimsBefore = inventory.claimedMovements().size();
         int historyBefore = count("work_order_status_history", order);
+        int itemsBefore = count("work_order_items", order);
 
         inventory.rejectNext(new StockOperationRejectedException("no reservation for this key", "{}"));
 
@@ -134,8 +136,12 @@ class ApproveQuoteUseCaseTest extends AbstractWorkOrderIntegrationTest {
         assertEquals("COTIZADA", statusOf(order), "the order keeps its quoted status");
         assertEquals(historyBefore, count("work_order_status_history", order),
                 "no approval history row was written");
+        assertEquals(itemsBefore, count("work_order_items", order),
+                "the order's relationships are exactly what they were");
         assertEquals(claimsBefore, inventory.claimedMovements().size(),
                 "a failed commit claims no consumption");
+        assertTrue(inventory.claimed("commit", ApproveQuoteUseCase.commitKey(order, part)).isEmpty(),
+                "no consumption got through the rejected commit");
     }
 
     @Test
