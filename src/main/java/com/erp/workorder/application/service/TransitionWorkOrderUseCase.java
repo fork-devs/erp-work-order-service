@@ -3,12 +3,14 @@ package com.erp.workorder.application.service;
 import com.erp.workorder.application.dto.command.TransitionWorkOrderCommand;
 import com.erp.workorder.application.dto.result.TransitionWorkOrderResult;
 import com.erp.workorder.application.exception.WorkOrderNotFoundException;
+import com.erp.workorder.application.logging.SecurityEventLogger;
 import com.erp.workorder.domain.model.WorkOrder;
 import com.erp.workorder.domain.port.UnitOfWork;
 import com.erp.workorder.domain.port.WorkOrderRepositoryPort;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.Map;
 
 /**
  * Applies one transition of the state machine declared in
@@ -35,8 +37,13 @@ public class TransitionWorkOrderUseCase {
     public TransitionWorkOrderResult transition(TransitionWorkOrderCommand command) {
         return unitOfWork.callInTransaction(() -> {
             WorkOrder order = repository.findById(command.tenantId(), command.orderId())
-                    .orElseThrow(() -> new WorkOrderNotFoundException(
-                            "the order does not exist in this tenant"));
+                    .orElseThrow(() -> {
+                        SecurityEventLogger.registrar("orden_ajena_intentada", command.tenantId(),
+                                command.changedBy(), null, "rechazado",
+                                Map.of("work_order_id", command.orderId().toString(),
+                                        "operacion", "transicion"));
+                        return new WorkOrderNotFoundException("the order does not exist in this tenant");
+                    });
 
             order.transitionTo(command.destination(), command.changedBy(), Instant.now());
 
