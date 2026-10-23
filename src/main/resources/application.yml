@@ -96,3 +96,18 @@ logging:
   level:
     root: INFO
     com.erp.workorder: DEBUG
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      # One transient storm must not drag the whole workshop with the
+      # inventory down: after repeated failures the circuit opens and the
+      # saga answers fast with its availability code.
+      inventory:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
