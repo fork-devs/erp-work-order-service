@@ -5,6 +5,7 @@ import com.erp.workorder.application.dto.command.TransitionWorkOrderCommand;
 import com.erp.workorder.application.dto.result.OpenWorkOrderResult;
 import com.erp.workorder.domain.model.WorkOrderStatus;
 import com.erp.workorder.interfaces.rest.support.TenantContextScope;
+import com.erp.workorder.application.dto.command.CancelWorkOrderCommand;
 import com.erp.workorder.application.dto.command.QuoteWorkOrderCommand;
 import com.erp.workorder.support.AbstractWorkOrderIntegrationTest;
 import com.erp.workorder.support.EmbeddedPostgresSupport;
@@ -38,6 +39,9 @@ class CancelledOrderNumberNotReusedTest extends AbstractWorkOrderIntegrationTest
 
     @Autowired
     private QuoteWorkOrderUseCase quoteOrder;
+
+    @Autowired
+    private CancelWorkOrderUseCase cancelOrder;
 
     @Autowired
     private FakeFleetPort fleet;
@@ -83,8 +87,10 @@ class CancelledOrderNumberNotReusedTest extends AbstractWorkOrderIntegrationTest
         // through the quote use case, never through the generic transition.
         asRequest(tenant, () -> quoteOrder.quote(new QuoteWorkOrderCommand(
                 tenant, cancelled.orderId(), UUID.randomUUID())));
-        asRequest(tenant, () -> transition.transition(new TransitionWorkOrderCommand(
-                tenant, cancelled.orderId(), WorkOrderStatus.CANCELADA, UUID.randomUUID())));
+        // The cancellation of a quoted order releases the reserved stock
+        // through its own door: the generic transition refuses to bypass.
+        asRequest(tenant, () -> cancelOrder.cancel(new CancelWorkOrderCommand(
+                tenant, cancelled.orderId(), UUID.randomUUID())));
 
         OpenWorkOrderResult next = asRequest(tenant, () -> openOrder.open(open));
 

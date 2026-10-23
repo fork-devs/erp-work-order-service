@@ -82,5 +82,11 @@ public class TransitionWorkOrderUseCase {
                     "the approval commits the reserved stock through its own use case: the generic transition "
                             + "does not bypass the consumption");
         }
+        if (origin == WorkOrderStatus.COTIZADA
+                && (destination == WorkOrderStatus.RECHAZADA || destination == WorkOrderStatus.CANCELADA)) {
+            throw new SagaReservedTransitionException(
+                    "the rejection or the cancellation of a quoted order releases the reserved stock through its "
+                            + "own use cases: the generic transition does not bypass the release");
+        }
     }
 }
