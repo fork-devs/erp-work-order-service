@@ -1,0 +1,61 @@
+# ==============================================================================
+# ERP WORK ORDER SERVICE - PRODUCTION PROFILE
+# ==============================================================================
+# The service owns its schema: migrations always run, never marking the
+# database as baseline. With baseline-on-migrate on, an existing database
+# would skip the migrations and the Row-Level Security policy would never be
+# created.
+# ==============================================================================
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    user: ${SPRING_FLYWAY_USER}
+    password: ${SPRING_FLYWAY_PASSWORD}
+    placeholders:
+      appRolePassword: ${ERP_APP_DB_PASSWORD}
+
+erp:
+  auth:
+    jwks-url: ${JWKS_URL}
+
+  # The saga calls the inventory and the opening verifies against fleet:
+  # deadlines and circuit live in application.yml, hosts by environment.
+  inventory:
+    base-url: ${INVENTORY_SERVICE_URL}
+  fleet:
+    base-url: ${FLEET_SERVICE_URL}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    enabled: false
+
+logging:
+  level:
+    root: WARN
+    com.erp.workorder: INFO

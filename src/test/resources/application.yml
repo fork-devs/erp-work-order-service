@@ -1,0 +1,48 @@
+spring:
+  profiles:
+    # The dev profile is the ONE the platform admits for a cleartext JWKS
+    # URL: every test context downloads the keys from the test issuer.
+    active: dev
+  application:
+    name: erp-work-order-service-test
+  # El perfil de test NO define datasource: la configuracion de la base de
+  # datos la inyecta AbstractWorkOrderIntegrationTest, que arranca una
+  # instancia real de PostgreSQL en proceso con las migraciones Flyway
+  # aplicadas y la aplicacion conectando con el rol de EJECUCION (que no es
+  # propietario de las tablas).
+  jpa:
+    show-sql: false
+  flyway:
+    enabled: true
+
+erp:
+  auth:
+    jwks-url: http://127.0.0.1:1/.well-known/jwks.json
+  inventory:
+    base-url: http://127.0.0.1:1
+
+  outbox:
+    # OFF for determinism: the tests drive the relay themselves; a running
+    # schedule could publish a pending event before its assertions.
+    relay-enabled: false
+  fleet:
+    base-url: http://127.0.0.1:1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+      probes:
+        enabled: true
+      group:
+        # The readiness REALLY probes the database: a service with a broken
+        # pool is alive but useless, and the orchestrator must know. The
+        # test yml SHADOWS the main one, so the group lives here too.
+        readiness:
+          include: readinessState, workOrderReadiness
+
