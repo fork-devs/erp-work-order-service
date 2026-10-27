@@ -33,3 +33,16 @@ management:
     web:
       exposure:
         include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+      probes:
+        enabled: true
+      group:
+        # The readiness REALLY probes the database: a service with a broken
+        # pool is alive but useless, and the orchestrator must know. The
+        # test yml SHADOWS the main one, so the group lives here too.
+        readiness:
+          include: readinessState, workOrderReadiness
+

@@ -97,8 +97,9 @@ management:
       probes:
         enabled: true
       group:
-        # Readiness really checks the database: a service with a broken
-        # connection pool is alive but serves nothing.
+        # The readiness REALLY probes the database: a service with a broken
+        # pool is alive but useless, and the orchestrator must know before
+        # sending it traffic.
         readiness:
           include: readinessState, workOrderReadiness
 
