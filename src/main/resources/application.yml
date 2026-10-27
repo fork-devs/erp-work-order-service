@@ -1,5 +1,6 @@
 server:
   port: ${SERVER_PORT:8088}
+  forward-headers-strategy: framework
   servlet:
     context-path: /
 
