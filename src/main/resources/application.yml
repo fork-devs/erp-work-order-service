@@ -1,0 +1,134 @@
+server:
+  port: ${SERVER_PORT:8088}
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: erp-work-order-service
+
+  datasource:
+    # The EXECUTION role is NOT the owner of the tables: the owner bypasses
+    # its own Row-Level Security policy, so with the owner the policy would
+    # isolate nothing.
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5437/erp_work_order_db}
+    username: ${SPRING_DATASOURCE_USERNAME:erp_work_order_app}
+    # No default value: the password arrives via environment variable or a
+    # secret store. A default value in a versioned file is a published
+    # secret (finding 7.18).
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 30000
+      pool-name: WorkOrderHikariPool
+      connection-timeout: 20000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # The service owns its schema. With baseline-on-migrate on, an existing
+    # database would be marked as baseline and the migrations would NOT run:
+    # the RLS policy would never be created.
+    baseline-on-migrate: false
+    # The migrations run with the OWNER role, different from the EXECUTION
+    # role of the application.
+    user: ${SPRING_FLYWAY_USER:erp_work_order_owner}
+    password: ${SPRING_FLYWAY_PASSWORD:}
+    placeholders:
+      # Password of the application EXECUTION role, created by the
+      # migration. Without owner privileges and without BYPASSRLS.
+      appRolePassword: ${ERP_APP_DB_PASSWORD:}
+
+erp:
+  auth:
+    # The key set of the issuer is published at /.well-known/jwks.json. The
+    # URL must use an encrypted scheme; startup fails explicitly otherwise,
+    # and the only exception is the local development profile.
+    jwks-url: ${JWKS_URL:https://auth.erp-automotriz.com/.well-known/jwks.json}
+  inventory:
+    # Saga call: the deadline is the documented one (500 ms) and the host
+    # comes by environment variable. The gateway route already reserves
+    # /:8088 with the same deadline; here we consume its API.
+    base-url: ${INVENTORY_SERVICE_URL:http://localhost:8084}
+  fleet:
+    base-url: ${FLEET_SERVICE_URL:http://localhost:8083}
+
+  outbox:
+    # The relay sweeps, publishes and retries INSIDE the service; the poll
+    # keeps the platform's degraded mode in mind (growing backoff, capped
+    # delay, dead-letter queue reprocessable by SUPERADMIN).
+    relay-enabled: ${OUTBOX_RELAY_ENABLED:true}
+    poll-millis: ${OUTBOX_POLL_MILLIS:5000}
+    batch-size: ${OUTBOX_BATCH_SIZE:20}
+    max-attempts: ${OUTBOX_MAX_ATTEMPTS:7}
+    max-delay-seconds: ${OUTBOX_MAX_DELAY_SECONDS:86400}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    # The document is published per profile: production does not need it,
+    # and publishing it hands out the API surface to anyone.
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: ${SWAGGER_ENABLED:false}
+    operationsSorter: method
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+      probes:
+        enabled: true
+      group:
+        # The readiness REALLY probes the database: a service with a broken
+        # pool is alive but useless, and the orchestrator must know before
+        # sending it traffic.
+        readiness:
+          include: readinessState, workOrderReadiness
+
+logging:
+  level:
+    root: INFO
+    com.erp.workorder: DEBUG
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      # One transient storm must not drag the whole workshop with the
+      # inventory down: after repeated failures the circuit opens and the
+      # saga answers fast with its availability code.
+      inventory:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
+      # The fleet verification of the opening needs the same fast answer:
+      # a dead fleet never leaves orders half-open waiting on the wire.
+      fleet:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
