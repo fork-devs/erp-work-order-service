@@ -5,8 +5,8 @@ import com.erp.workorder.domain.port.FleetPort;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,7 +25,7 @@ import java.util.UUID;
 @Primary
 public class FakeFleetPort implements FleetPort {
 
-    private final Map<VehicleKey, UUID> owners = new HashMap<>();
+    private final Map<VehicleKey, UUID> owners = new ConcurrentHashMap<>();
     private FleetUnavailableException outage;
 
     @Override

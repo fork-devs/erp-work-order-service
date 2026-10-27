@@ -5,12 +5,12 @@ import com.erp.workorder.domain.port.InventoryPort;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -34,7 +34,7 @@ public class FakeInventoryPort implements InventoryPort {
     private final Map<String, StockConfirmation> claimed = new ConcurrentHashMap<>();
 
     /** The last requests that reached the fake, in arrival order. */
-    private final List<StockReservation> reserveRequests = new ArrayList<>();
+    private final List<StockReservation> reserveRequests = new CopyOnWriteArrayList<>();
 
     /** When set, the NEXT operation rejects with this exception (once). */
     private final AtomicReference<RuntimeException> nextFailure = new AtomicReference<>();

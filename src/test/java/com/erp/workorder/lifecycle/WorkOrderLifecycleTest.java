@@ -25,6 +25,7 @@ import com.erp.workorder.support.EmbeddedPostgresSupport;
 import com.erp.workorder.support.FakeFleetPort;
 import com.erp.workorder.support.FakeInventoryPort;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -72,6 +73,12 @@ class WorkOrderLifecycleTest extends AbstractWorkOrderIntegrationTest {
     private FakeFleetPort fleet;
     @Autowired
     private FakeInventoryPort inventory;
+
+    @BeforeEach
+    void startClean() {
+        fleet.reset();
+        inventory.reset();
+    }
 
     @AfterEach
     void clean() throws SQLException {
