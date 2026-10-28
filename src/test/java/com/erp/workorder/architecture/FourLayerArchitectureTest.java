@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  * </ol>
  *
  * <p>Ver docs/doc-estado-implementacion.md hallazgos P0 5.3 y P0 5.8, y la
- * decision D7 del design del change.
+ * decision D7 of the change design.
  */
 class FourLayerArchitectureTest {
 
