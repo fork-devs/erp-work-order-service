@@ -10,8 +10,8 @@ import java.util.UUID;
  * One item of the API's adding request.
  */
 public record WorkOrderItemRequest(
-        @NotNull UUID sparePartId,
-        @Positive int quantity,
-        @NotNull BigDecimal laborPrice
+        @NotNull(message = "{validation.work-order.item.spare-part-id.not-null}") UUID sparePartId,
+        @Positive(message = "{validation.work-order.item.quantity.positive}") int quantity,
+        @NotNull(message = "{validation.work-order.item.labor-price.not-null}") BigDecimal laborPrice
 ) {
 }

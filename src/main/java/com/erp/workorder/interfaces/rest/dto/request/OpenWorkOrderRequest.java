@@ -11,10 +11,10 @@ import java.util.UUID;
  * in the body simply does not find where.
  */
 public record OpenWorkOrderRequest(
-        @NotNull UUID customerId,
-        @NotNull UUID vehicleId,
-        @NotNull UUID branchId,
+        @NotNull(message = "{validation.work-order.open.customer-id.not-null}") UUID customerId,
+        @NotNull(message = "{validation.work-order.open.vehicle-id.not-null}") UUID vehicleId,
+        @NotNull(message = "{validation.work-order.open.branch-id.not-null}") UUID branchId,
         UUID mechanicId,
-        @NotBlank String diagnosis
+        @NotBlank(message = "{validation.work-order.open.diagnosis.not-blank}") String diagnosis
 ) {
 }
