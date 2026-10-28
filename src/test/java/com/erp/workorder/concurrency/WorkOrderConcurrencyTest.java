@@ -18,6 +18,7 @@ import com.erp.workorder.support.EmbeddedPostgresSupport;
 import com.erp.workorder.support.FakeFleetPort;
 import com.erp.workorder.support.FakeInventoryPort;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -76,6 +77,12 @@ class WorkOrderConcurrencyTest extends AbstractWorkOrderIntegrationTest {
     private FakeInventoryPort inventory;
 
     private final ExecutorService threads = Executors.newFixedThreadPool(2);
+
+    @BeforeEach
+    void setUp() {
+        fleet.reset();
+        inventory.reset();
+    }
 
     @AfterEach
     void clean() throws Exception {
