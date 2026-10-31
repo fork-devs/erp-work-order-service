@@ -129,6 +129,36 @@ public class GlobalRestExceptionHandler {
         return problem("WORK_ORDER_NOT_FOUND", HttpStatus.NOT_FOUND, detail, request);
     }
 
+    @ExceptionHandler(com.erp.workorder.application.exception.ServiceNotFoundException.class)
+    public ProblemDetail handleServiceNotFound(com.erp.workorder.application.exception.ServiceNotFoundException ex, WebRequest request) {
+        return problem("SERVICE_NOT_FOUND", HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(com.erp.workorder.application.exception.ServiceDeletionConflictException.class)
+    public ProblemDetail handleServiceDeletionConflict(com.erp.workorder.application.exception.ServiceDeletionConflictException ex, WebRequest request) {
+        return problem("SERVICE_IN_USE_CONFLICT", HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(com.erp.workorder.application.exception.TaskNotFoundException.class)
+    public ProblemDetail handleTaskNotFound(com.erp.workorder.application.exception.TaskNotFoundException ex, WebRequest request) {
+        return problem("TASK_NOT_FOUND", HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(com.erp.workorder.application.exception.TaskProductNotFoundException.class)
+    public ProblemDetail handleTaskProductNotFound(com.erp.workorder.application.exception.TaskProductNotFoundException ex, WebRequest request) {
+        return problem("TASK_PRODUCT_NOT_FOUND", HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(com.erp.workorder.application.exception.WorkOrderClosedException.class)
+    public ProblemDetail handleWorkOrderClosed(com.erp.workorder.application.exception.WorkOrderClosedException ex, WebRequest request) {
+        return problem("WORK_ORDER_ALREADY_CLOSED", HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ProblemDetail handleIllegalState(IllegalStateException ex, WebRequest request) {
+        return problem("ILLEGAL_STATE", HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     /** The denial by role is an authorization decision, not an operation's failure: 403, never 500. */
     @ExceptionHandler(AccessDeniedException.class)
     public ProblemDetail handleAccessDenied(AccessDeniedException ex, WebRequest request) {
