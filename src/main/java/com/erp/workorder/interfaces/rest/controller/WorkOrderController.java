@@ -203,6 +203,19 @@ public class WorkOrderController {
         return ResponseEntity.ok(toTransition(result));
     }
 
+    @PostMapping("/{orderId}/complete")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
+    @Operation(summary = "Complete the order directly")
+    public ResponseEntity<WorkOrderTransitionResponse> complete(@PathVariable UUID orderId) {
+        WorkOrder order = repository.findById(RequestPrincipal.tenant(), orderId)
+                .orElseThrow(() -> new com.erp.workorder.application.exception.WorkOrderNotFoundException("the order does not exist in this tenant"));
+        WorkOrderStatus destination = order.status() == WorkOrderStatus.LISTA ? WorkOrderStatus.ENTREGADA : WorkOrderStatus.LISTA;
+        TransitionWorkOrderResult result = transitionOrder.transition(new TransitionWorkOrderCommand(
+                RequestPrincipal.tenant(), orderId, destination, RequestPrincipal.userId()));
+        return ResponseEntity.ok(toTransition(result));
+    }
+
+
     @PostMapping("/{orderId}/quote")
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Quote the order: the saga reserves every item's stock")
