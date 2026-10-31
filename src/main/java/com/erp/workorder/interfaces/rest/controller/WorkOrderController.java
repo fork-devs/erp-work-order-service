@@ -107,7 +107,7 @@ public class WorkOrderController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Open a work order for a vehicle")
     public ResponseEntity<WorkOrderOpenedResponse> open(@Valid @RequestBody OpenWorkOrderRequest request) {
         OpenWorkOrderResult result = openOrder.open(new OpenWorkOrderCommand(
@@ -122,7 +122,7 @@ public class WorkOrderController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'MECANICO')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
     @Operation(summary = "List the workshop's orders, optionally by status")
     public ResponseEntity<List<WorkOrderSummaryResponse>> list(
             @RequestParam(required = false) String status) {
@@ -136,7 +136,7 @@ public class WorkOrderController {
     }
 
     @GetMapping("/{orderId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'MECANICO')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
     @Operation(summary = "One order's detail: items and history included")
     public ResponseEntity<WorkOrderDetailResponse> detail(@PathVariable UUID orderId) {
         UUID tenant = RequestPrincipal.tenant();
@@ -147,7 +147,7 @@ public class WorkOrderController {
     }
 
     @PostMapping("/{orderId}/items")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Add the quoted parts to an order")
     public ResponseEntity<List<UUID>> addItem(@PathVariable UUID orderId,
                                               @Valid @RequestBody AddItemsRequest request) {
@@ -160,7 +160,7 @@ public class WorkOrderController {
     }
 
     @PostMapping("/{orderId}/transition")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Move the order to the declared destination status")
     public ResponseEntity<WorkOrderTransitionResponse> transition(
             @PathVariable UUID orderId,
@@ -172,7 +172,7 @@ public class WorkOrderController {
     }
 
     @PostMapping("/{orderId}/quote")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Quote the order: the saga reserves every item's stock")
     public ResponseEntity<WorkOrderTransitionResponse> quote(@PathVariable UUID orderId) {
         var result = quoteOrder.quote(new QuoteWorkOrderCommand(
@@ -181,7 +181,7 @@ public class WorkOrderController {
     }
 
     @PostMapping("/{orderId}/approve")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Approve the quote: the saga consumes the reserved stock")
     public ResponseEntity<WorkOrderTransitionResponse> approve(@PathVariable UUID orderId) {
         var result = approveOrder.approve(new ApproveQuoteCommand(
@@ -190,7 +190,7 @@ public class WorkOrderController {
     }
 
     @PostMapping("/{orderId}/reject")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Reject the quote: the saga releases every reservation")
     public ResponseEntity<WorkOrderTransitionResponse> reject(@PathVariable UUID orderId) {
         var result = rejectOrder.reject(new RejectQuoteCommand(
@@ -199,7 +199,7 @@ public class WorkOrderController {
     }
 
     @PostMapping("/{orderId}/cancel")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Cancel the order: the saga releases the reservations it holds")
     public ResponseEntity<WorkOrderTransitionResponse> cancel(@PathVariable UUID orderId) {
         var result = cancelOrder.cancel(new CancelWorkOrderCommand(

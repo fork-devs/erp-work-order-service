@@ -37,7 +37,7 @@ public class WorkshopServiceController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Create a service in the branch catalog")
     public ResponseEntity<ServiceResponse> create(@Valid @RequestBody CreateServiceRequest request) {
         UUID tenantId = RequestPrincipal.tenant();
@@ -46,7 +46,7 @@ public class WorkshopServiceController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
     @Operation(summary = "List active services for a branch")
     public ResponseEntity<List<ServiceResponse>> list(@RequestParam UUID branchId) {
         UUID tenantId = RequestPrincipal.tenant();
@@ -57,7 +57,7 @@ public class WorkshopServiceController {
     }
 
     @PutMapping("/{serviceId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Update service name and price")
     public ResponseEntity<ServiceResponse> update(@PathVariable UUID serviceId,
                                                   @Valid @RequestBody UpdateServiceRequest request) {
@@ -67,7 +67,7 @@ public class WorkshopServiceController {
     }
 
     @DeleteMapping("/{serviceId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Delete service from catalog if not referenced in tasks")
     public ResponseEntity<Void> delete(@PathVariable UUID serviceId) {
         UUID tenantId = RequestPrincipal.tenant();

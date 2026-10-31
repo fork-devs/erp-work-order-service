@@ -49,7 +49,7 @@ public class WorkOrderTaskController {
     }
 
     @PostMapping("/api/v1/work-orders/{id}/tasks")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Add a task to a work order")
     public ResponseEntity<TaskResponse> addTask(@PathVariable("id") UUID workOrderId,
                                                 @Valid @RequestBody CreateTaskRequest request) {
@@ -65,7 +65,7 @@ public class WorkOrderTaskController {
     }
 
     @PutMapping("/api/v1/work-orders/{id}/tasks/{taskId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Update task details")
     public ResponseEntity<TaskResponse> updateTask(@PathVariable("id") UUID workOrderId,
                                                    @PathVariable("taskId") UUID taskId,
@@ -84,7 +84,7 @@ public class WorkOrderTaskController {
     }
 
     @DeleteMapping("/api/v1/work-orders/{id}/tasks/{taskId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Delete task and release any product reservations")
     public ResponseEntity<Void> deleteTask(@PathVariable("id") UUID workOrderId,
                                            @PathVariable("taskId") UUID taskId) {
@@ -94,7 +94,7 @@ public class WorkOrderTaskController {
     }
 
     @PostMapping("/api/v1/work-order-tasks/{taskId}/assign-mechanic")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Assign a technician/mechanic to a task")
     public ResponseEntity<TaskResponse> assignMechanic(
             @PathVariable("taskId") UUID taskId,
@@ -107,7 +107,7 @@ public class WorkOrderTaskController {
     }
 
     @PostMapping("/api/v1/work-order-tasks/{taskId}/start")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
     @Operation(summary = "Start task execution (transitions PENDING to DOING)")
     public ResponseEntity<TaskResponse> startTask(@PathVariable("taskId") UUID taskId) {
         UUID tenantId = RequestPrincipal.tenant();
@@ -116,7 +116,7 @@ public class WorkOrderTaskController {
     }
 
     @PostMapping("/api/v1/work-order-tasks/{taskId}/complete")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
     @Operation(summary = "Complete task execution (transitions DOING to COMPLETED)")
     public ResponseEntity<TaskResponse> completeTask(@PathVariable("taskId") UUID taskId) {
         UUID tenantId = RequestPrincipal.tenant();
@@ -125,7 +125,7 @@ public class WorkOrderTaskController {
     }
 
     @PostMapping("/api/v1/work-order-tasks/{taskId}/reopen")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Reopen completed task (transitions COMPLETED to DOING)")
     public ResponseEntity<TaskResponse> reopenTask(@PathVariable("taskId") UUID taskId) {
         UUID tenantId = RequestPrincipal.tenant();
@@ -134,7 +134,7 @@ public class WorkOrderTaskController {
     }
 
     @PostMapping("/api/v1/work-order-tasks/{taskId}/products")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Allocate spare part to task with immediate stock reservation")
     public ResponseEntity<TaskProductResponse> addProduct(
             @PathVariable("taskId") UUID taskId,
@@ -152,7 +152,7 @@ public class WorkOrderTaskController {
     }
 
     @PutMapping("/api/v1/work-order-tasks/{taskId}/products/{productId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Modify allocated spare part quantity with reservation adjustment")
     public ResponseEntity<TaskProductResponse> updateProductQuantity(
             @PathVariable("taskId") UUID taskId,
@@ -169,7 +169,7 @@ public class WorkOrderTaskController {
     }
 
     @DeleteMapping("/api/v1/work-order-tasks/{taskId}/products/{productId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Remove spare part from task and release stock reservation")
     public ResponseEntity<Void> removeProduct(
             @PathVariable("taskId") UUID taskId,
