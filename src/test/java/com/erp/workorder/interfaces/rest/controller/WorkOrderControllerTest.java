@@ -21,8 +21,10 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -225,5 +227,38 @@ class WorkOrderControllerTest extends AbstractWorkOrderIntegrationTest {
         String body = result.getResponse().getContentAsString();
         int from = body.indexOf("\"orderId\":\"") + "\"orderId\":\"".length();
         return UUID.fromString(body.substring(from, from + 36));
+    }
+
+    @Test
+    void anAsesorUpdatesDiagnosisThroughPut() throws Exception {
+        UUID orderId = openedOrder();
+        String updatePayload = """
+                {
+                  "diagnosticSummary": "Cliente reporta vibracion al frenar a 80 km/h",
+                  "mileageIn": 45200
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/work-orders/" + orderId)
+                        .header("Authorization", "Bearer " + asesorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updatePayload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.diagnosis").value("Cliente reporta vibracion al frenar a 80 km/h"));
+    }
+
+    @Test
+    void anAsesorCancelsAndDeletesOrderThroughDelete() throws Exception {
+        UUID orderId = openedOrder();
+
+        mockMvc.perform(delete("/api/v1/work-orders/" + orderId)
+                        .header("Authorization", "Bearer " + asesorToken))
+                .andExpect(status().isNoContent());
+
+        // Verify status moved to CANCELADA
+        mockMvc.perform(get("/api/v1/work-orders/" + orderId)
+                        .header("Authorization", "Bearer " + asesorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELADA"));
     }
 }

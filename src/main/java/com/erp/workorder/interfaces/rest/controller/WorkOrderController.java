@@ -28,6 +28,7 @@ import com.erp.workorder.domain.port.WorkOrderRepositoryPort;
 import com.erp.workorder.interfaces.rest.dto.request.AddItemsRequest;
 import com.erp.workorder.interfaces.rest.dto.request.OpenWorkOrderRequest;
 import com.erp.workorder.interfaces.rest.dto.request.TransitionRequest;
+import com.erp.workorder.interfaces.rest.dto.request.UpdateWorkOrderRequest;
 import com.erp.workorder.interfaces.rest.dto.request.WorkOrderItemRequest;
 import com.erp.workorder.interfaces.rest.dto.response.WorkOrderDetailResponse;
 import com.erp.workorder.interfaces.rest.dto.response.WorkOrderOpenedResponse;
@@ -40,9 +41,11 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -144,6 +147,35 @@ public class WorkOrderController {
                 repository.findById(tenant, orderId));
         return order.map(value -> ResponseEntity.ok(toDetail(value)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{orderId}")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
+    @Operation(summary = "Update initial diagnosis and mileage in")
+    public ResponseEntity<WorkOrderDetailResponse> update(
+            @PathVariable UUID orderId,
+            @RequestBody UpdateWorkOrderRequest request) {
+        UUID tenant = RequestPrincipal.tenant();
+        WorkOrder updated = unitOfWork.callInTransaction(() -> {
+            WorkOrder order = repository.findById(tenant, orderId)
+                    .orElseThrow(() -> new IllegalArgumentException("Work order not found: " + orderId));
+            String resolvedDiagnosis = request.resolveDiagnosis();
+            if (resolvedDiagnosis != null) {
+                order.updateDetails(resolvedDiagnosis);
+                repository.updateStatus(order);
+            }
+            return order;
+        });
+        return ResponseEntity.ok(toDetail(updated));
+    }
+
+    @DeleteMapping("/{orderId}")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
+    @Operation(summary = "Delete and cancel the order releasing any reserved stock")
+    public ResponseEntity<Void> delete(@PathVariable UUID orderId) {
+        cancelOrder.cancel(new CancelWorkOrderCommand(
+                RequestPrincipal.tenant(), orderId, RequestPrincipal.userId()));
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{orderId}/items")
