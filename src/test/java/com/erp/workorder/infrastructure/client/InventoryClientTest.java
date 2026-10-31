@@ -180,4 +180,18 @@ class InventoryClientTest {
         assertTrue(fast.getMessage().contains("circuit is open"));
         server.verify();
     }
+
+    @Test
+    void releasesStockSuccessfully() {
+        server.expect(org.springframework.test.web.client.ExpectedCount.once(), requestTo("http://inventory.test/api/v1/inventory/stock/release"))
+                .andExpect(header("Authorization", "Bearer verified.principal.token"))
+                .andExpect(header("X-Tenant-ID", TenantContextHolder.getTenantId().toString()))
+                .andRespond(withSuccess().contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .body("{\"id\":\"" + UUID.randomUUID() + "\",\"movementType\":\"RELEASE\",\"quantity\":2}"));
+
+        InventoryPort.StockConfirmation outcome = client.release(reserve);
+
+        assertEquals("RELEASE", outcome.movementType());
+        server.verify();
+    }
 }
