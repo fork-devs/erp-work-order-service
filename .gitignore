@@ -31,3 +31,14 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+
+# Local tooling & specifications
+docs/
+openspec/
+.opencode/

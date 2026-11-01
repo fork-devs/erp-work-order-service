@@ -1,0 +1,75 @@
+# =============================================================================
+# MANIFIESTO AZURE CONTAINER APPS (ACA) — ERP WORK ORDER SERVICE
+# =============================================================================
+
+apiVersion: 2024-03-01
+location: eastus2
+name: erp-work-order-service
+type: Microsoft.App/containerApps
+properties:
+  managedEnvironmentId: /subscriptions/${AZURE_SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.App/managedEnvironments/${ACA_ENVIRONMENT_NAME}
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      external: false
+      targetPort: 8087
+      transport: auto
+      allowInsecure: false
+    secrets:
+      - name: db-password
+        value: ${WORK_ORDER_DB_PASSWORD}
+      - name: internal-service-key
+        value: ${INTERNAL_SERVICE_KEY}
+  template:
+    containers:
+      - name: erp-work-order-service
+        image: ${ACR_NAME}.azurecr.io/erp-work-order-service:latest
+        resources:
+          cpu: 0.5
+          memory: 1.0Gi
+        env:
+          - name: SERVER_PORT
+            value: "8087"
+          - name: SPRING_PROFILES_ACTIVE
+            value: "prod"
+          - name: SPRING_DATASOURCE_URL
+            value: "jdbc:postgresql://${WORK_ORDER_DB_HOST}:${WORK_ORDER_DB_PORT}/${WORK_ORDER_DB_NAME}?sslmode=require"
+          - name: SPRING_DATASOURCE_USERNAME
+            value: "${WORK_ORDER_DB_USER}"
+          - name: SPRING_DATASOURCE_PASSWORD
+            secretRef: db-password
+          - name: SPRING_FLYWAY_USER
+            value: "${WORK_ORDER_DB_USER}"
+          - name: SPRING_FLYWAY_PASSWORD
+            secretRef: db-password
+          - name: ERP_APP_DB_PASSWORD
+            secretRef: db-password
+          - name: ERP_PLATFORM_ROLE_PASSWORD
+            secretRef: db-password
+          - name: JWKS_URL
+            value: "http://erp-auth-service:8081/.well-known/jwks.json"
+          - name: INTERNAL_SERVICE_KEY
+            secretRef: internal-service-key
+          - name: INVENTORY_SERVICE_URL
+            value: "http://erp-inventory-service:8084"
+        probes:
+          - type: Liveness
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8087
+            initialDelaySeconds: 40
+            periodSeconds: 15
+          - type: Readiness
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8087
+            initialDelaySeconds: 20
+            periodSeconds: 10
+    scale:
+      minReplicas: 1
+      maxReplicas: 3
+      rules:
+        - name: http-scaling-rule
+          http:
+            metadata:
+              concurrentRequests: "100"

@@ -28,6 +28,7 @@ import com.erp.workorder.domain.port.WorkOrderRepositoryPort;
 import com.erp.workorder.interfaces.rest.dto.request.AddItemsRequest;
 import com.erp.workorder.interfaces.rest.dto.request.OpenWorkOrderRequest;
 import com.erp.workorder.interfaces.rest.dto.request.TransitionRequest;
+import com.erp.workorder.interfaces.rest.dto.request.UpdateWorkOrderRequest;
 import com.erp.workorder.interfaces.rest.dto.request.WorkOrderItemRequest;
 import com.erp.workorder.interfaces.rest.dto.response.WorkOrderDetailResponse;
 import com.erp.workorder.interfaces.rest.dto.response.WorkOrderOpenedResponse;
@@ -40,9 +41,11 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -107,7 +110,7 @@ public class WorkOrderController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Open a work order for a vehicle")
     public ResponseEntity<WorkOrderOpenedResponse> open(@Valid @RequestBody OpenWorkOrderRequest request) {
         OpenWorkOrderResult result = openOrder.open(new OpenWorkOrderCommand(
@@ -122,7 +125,7 @@ public class WorkOrderController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'MECANICO')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
     @Operation(summary = "List the workshop's orders, optionally by status")
     public ResponseEntity<List<WorkOrderSummaryResponse>> list(
             @RequestParam(required = false) String status) {
@@ -136,7 +139,7 @@ public class WorkOrderController {
     }
 
     @GetMapping("/{orderId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'MECANICO')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
     @Operation(summary = "One order's detail: items and history included")
     public ResponseEntity<WorkOrderDetailResponse> detail(@PathVariable UUID orderId) {
         UUID tenant = RequestPrincipal.tenant();
@@ -146,8 +149,37 @@ public class WorkOrderController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @PutMapping("/{orderId}")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
+    @Operation(summary = "Update initial diagnosis and mileage in")
+    public ResponseEntity<WorkOrderDetailResponse> update(
+            @PathVariable UUID orderId,
+            @RequestBody UpdateWorkOrderRequest request) {
+        UUID tenant = RequestPrincipal.tenant();
+        WorkOrder updated = unitOfWork.callInTransaction(() -> {
+            WorkOrder order = repository.findById(tenant, orderId)
+                    .orElseThrow(() -> new IllegalArgumentException("Work order not found: " + orderId));
+            String resolvedDiagnosis = request.resolveDiagnosis();
+            if (resolvedDiagnosis != null) {
+                order.updateDetails(resolvedDiagnosis);
+                repository.updateStatus(order);
+            }
+            return order;
+        });
+        return ResponseEntity.ok(toDetail(updated));
+    }
+
+    @DeleteMapping("/{orderId}")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
+    @Operation(summary = "Delete and cancel the order releasing any reserved stock")
+    public ResponseEntity<Void> delete(@PathVariable UUID orderId) {
+        cancelOrder.cancel(new CancelWorkOrderCommand(
+                RequestPrincipal.tenant(), orderId, RequestPrincipal.userId()));
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{orderId}/items")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Add the quoted parts to an order")
     public ResponseEntity<List<UUID>> addItem(@PathVariable UUID orderId,
                                               @Valid @RequestBody AddItemsRequest request) {
@@ -160,7 +192,7 @@ public class WorkOrderController {
     }
 
     @PostMapping("/{orderId}/transition")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Move the order to the declared destination status")
     public ResponseEntity<WorkOrderTransitionResponse> transition(
             @PathVariable UUID orderId,
@@ -171,8 +203,21 @@ public class WorkOrderController {
         return ResponseEntity.ok(toTransition(result));
     }
 
+    @PostMapping("/{orderId}/complete")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
+    @Operation(summary = "Complete the order directly")
+    public ResponseEntity<WorkOrderTransitionResponse> complete(@PathVariable UUID orderId) {
+        WorkOrder order = repository.findById(RequestPrincipal.tenant(), orderId)
+                .orElseThrow(() -> new com.erp.workorder.application.exception.WorkOrderNotFoundException("the order does not exist in this tenant"));
+        WorkOrderStatus destination = order.status() == WorkOrderStatus.LISTA ? WorkOrderStatus.ENTREGADA : WorkOrderStatus.LISTA;
+        TransitionWorkOrderResult result = transitionOrder.transition(new TransitionWorkOrderCommand(
+                RequestPrincipal.tenant(), orderId, destination, RequestPrincipal.userId()));
+        return ResponseEntity.ok(toTransition(result));
+    }
+
+
     @PostMapping("/{orderId}/quote")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Quote the order: the saga reserves every item's stock")
     public ResponseEntity<WorkOrderTransitionResponse> quote(@PathVariable UUID orderId) {
         var result = quoteOrder.quote(new QuoteWorkOrderCommand(
@@ -181,7 +226,7 @@ public class WorkOrderController {
     }
 
     @PostMapping("/{orderId}/approve")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Approve the quote: the saga consumes the reserved stock")
     public ResponseEntity<WorkOrderTransitionResponse> approve(@PathVariable UUID orderId) {
         var result = approveOrder.approve(new ApproveQuoteCommand(
@@ -190,7 +235,7 @@ public class WorkOrderController {
     }
 
     @PostMapping("/{orderId}/reject")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Reject the quote: the saga releases every reservation")
     public ResponseEntity<WorkOrderTransitionResponse> reject(@PathVariable UUID orderId) {
         var result = rejectOrder.reject(new RejectQuoteCommand(
@@ -199,7 +244,7 @@ public class WorkOrderController {
     }
 
     @PostMapping("/{orderId}/cancel")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Cancel the order: the saga releases the reservations it holds")
     public ResponseEntity<WorkOrderTransitionResponse> cancel(@PathVariable UUID orderId) {
         var result = cancelOrder.cancel(new CancelWorkOrderCommand(

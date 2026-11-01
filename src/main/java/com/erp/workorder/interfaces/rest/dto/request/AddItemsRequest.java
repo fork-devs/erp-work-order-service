@@ -10,6 +10,6 @@ import java.util.List;
  * their quantities, next to the labor price the workshop quotes.
  */
 public record AddItemsRequest(
-        @Valid @NotEmpty List<WorkOrderItemRequest> items
+        @Valid @NotEmpty(message = "{validation.work-order.items.not-empty}") List<WorkOrderItemRequest> items
 ) {
 }

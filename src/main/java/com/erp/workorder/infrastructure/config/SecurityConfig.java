@@ -14,12 +14,8 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-import java.util.List;
 
 /**
  * The work order service's perimeter security.
@@ -32,8 +28,8 @@ import java.util.List;
  * <p>Nothing on the API path is {@code permitAll} — only the documentation
  * and the health check, which the orchestrator must reach without a token.
  *
- * <p>CORS accepts no arbitrary origin either: the list is configurable and
- * must be explicit.
+ * <p>CORS negotiation is delegated to Kong API Gateway to prevent duplicate
+ * Access-Control-Allow-* headers from reaching web clients.
  */
 @Configuration
 @EnableWebSecurity
@@ -57,12 +53,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationFilter jwtAuthenticationFilter,
-                                                   CorsConfigurationSource corsConfigurationSource,
                                                    UnauthorizedEntryPoint unauthorizedEntryPoint,
                                                    ForbiddenAccessDeniedHandler forbiddenAccessDeniedHandler) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+                .cors(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(unauthorizedEntryPoint)
@@ -81,22 +76,5 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource(
-            @Value("${erp.cors.allowed-origins:http://localhost:4200}") String allowedOrigins) {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .filter(origin -> !origin.isEmpty())
-                .toList());
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Tenant-ID"));
-        configuration.setExposedHeaders(List.of("Authorization", "X-Tenant-ID"));
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
     }
 }

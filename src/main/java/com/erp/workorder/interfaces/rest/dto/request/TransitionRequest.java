@@ -7,6 +7,6 @@ import jakarta.validation.constraints.NotBlank;
  * machine arbitrates it against the declared transitions.
  */
 public record TransitionRequest(
-        @NotBlank String destination
+        @NotBlank(message = "{validation.work-order.transition.destination.not-blank}") String destination
 ) {
 }

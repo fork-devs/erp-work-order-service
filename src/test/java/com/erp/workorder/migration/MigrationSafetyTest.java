@@ -35,7 +35,8 @@ class MigrationSafetyTest extends AbstractWorkOrderIntegrationTest {
 
     /** The tables the TENANT reads: RLS forced on all of them. */
     private static final String[] TABLES = {
-            "work_orders", "work_order_items", "work_order_status_history", "work_order_sequences"
+            "work_orders", "work_order_items", "work_order_status_history", "work_order_sequences",
+            "workshop_services", "work_order_tasks", "work_order_task_products"
     };
 
     /**

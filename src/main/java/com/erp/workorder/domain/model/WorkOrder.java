@@ -198,6 +198,16 @@ public class WorkOrder {
         }
     }
 
+    /** Updates initial diagnostic summary while the order is not in a terminal state. */
+    public void updateDetails(String newDiagnosis) {
+        if (status.isTerminal()) {
+            throw new IllegalStateException("Cannot update details of a terminal work order");
+        }
+        if (newDiagnosis != null && !newDiagnosis.trim().isEmpty()) {
+            this.diagnosis = newDiagnosis.trim();
+        }
+    }
+
     /** The reservation lives only at COTIZADA, so only there can it be released. */
     public boolean hasLiveReservation() {
         return status == WorkOrderStatus.COTIZADA;
