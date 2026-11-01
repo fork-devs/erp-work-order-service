@@ -13,8 +13,11 @@ WORKDIR /app
 RUN addgroup -S erp && adduser -S erp -G erp
 USER erp:erp
 
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=build --chown=erp:erp /app/target/*.jar app.jar
 
 EXPOSE 8088
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
+  CMD wget -q --spider http://localhost:8088/actuator/health || exit 1
+
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]

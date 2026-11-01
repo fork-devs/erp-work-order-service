@@ -20,7 +20,7 @@ services:
       - POSTGRES_USER=erp_work_order_owner
       - POSTGRES_PASSWORD=${SPRING_FLYWAY_PASSWORD:?defina SPRING_FLYWAY_PASSWORD con la contrasena del rol propietario}
     ports:
-      - '5437:5432'
+      - '127.0.0.1:5437:5432'
     volumes:
       - postgres_work_order_data:/var/lib/postgresql/data
     healthcheck:
