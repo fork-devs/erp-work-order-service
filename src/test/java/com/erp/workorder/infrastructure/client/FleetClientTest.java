@@ -1,7 +1,6 @@
 package com.erp.workorder.infrastructure.client;
 
 import com.erp.workorder.application.exception.FleetUnavailableException;
-import com.erp.workorder.domain.port.FleetPort;
 import com.erp.workorder.domain.port.FleetPort.VehicleRegistration;
 import com.erp.workorder.infrastructure.persistence.rls.TenantContextHolder;
 import com.erp.workorder.infrastructure.security.PrincipalTokenHolder;
