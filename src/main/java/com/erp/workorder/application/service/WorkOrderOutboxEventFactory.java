@@ -1,6 +1,5 @@
 package com.erp.workorder.application.service;
 
-import com.erp.workorder.domain.port.WorkOrderOutboxPort;
 import com.erp.workorder.domain.port.WorkOrderOutboxPort.WorkOrderOutboxEvent;
 import org.springframework.stereotype.Component;
 

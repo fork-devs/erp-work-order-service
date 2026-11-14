@@ -4,7 +4,6 @@ import com.erp.workorder.application.dto.command.OpenWorkOrderCommand;
 import com.erp.workorder.application.dto.result.OpenWorkOrderResult;
 import com.erp.workorder.domain.model.BranchId;
 import com.erp.workorder.domain.model.CustomerRef;
-import com.erp.workorder.domain.model.MechanicRef;
 import com.erp.workorder.domain.model.TenantId;
 import com.erp.workorder.domain.model.VehicleRef;
 import com.erp.workorder.domain.model.WorkOrder;

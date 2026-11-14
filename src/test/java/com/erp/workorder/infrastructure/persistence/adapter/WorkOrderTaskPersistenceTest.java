@@ -2,8 +2,6 @@ package com.erp.workorder.infrastructure.persistence.adapter;
 
 import com.erp.workorder.domain.model.BranchId;
 import com.erp.workorder.domain.model.CustomerRef;
-import com.erp.workorder.domain.model.ServiceId;
-import com.erp.workorder.domain.model.TaskId;
 import com.erp.workorder.domain.model.TaskProduct;
 import com.erp.workorder.domain.model.TaskStatus;
 import com.erp.workorder.domain.model.TenantId;
@@ -32,7 +30,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WorkOrderTaskPersistenceTest extends AbstractWorkOrderIntegrationTest {
