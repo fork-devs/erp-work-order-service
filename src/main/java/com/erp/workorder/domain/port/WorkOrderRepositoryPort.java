@@ -1,7 +1,6 @@
 package com.erp.workorder.domain.port;
 
 import com.erp.workorder.domain.model.WorkOrder;
-import com.erp.workorder.domain.model.WorkOrderNumber;
 import com.erp.workorder.domain.model.WorkOrderStatus;
 
 import java.util.List;
