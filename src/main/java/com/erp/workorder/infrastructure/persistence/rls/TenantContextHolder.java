@@ -15,7 +15,7 @@ import java.util.UUID;
  */
 public final class TenantContextHolder {
 
-    private static final ThreadLocal<UUID> CURRENT_TENANT = new ThreadLocal<>();
+    private static final InheritableThreadLocal<UUID> CURRENT_TENANT = new InheritableThreadLocal<>();
 
     private TenantContextHolder() {
     }
