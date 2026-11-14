@@ -29,7 +29,6 @@ import com.erp.workorder.interfaces.rest.dto.request.AddItemsRequest;
 import com.erp.workorder.interfaces.rest.dto.request.OpenWorkOrderRequest;
 import com.erp.workorder.interfaces.rest.dto.request.TransitionRequest;
 import com.erp.workorder.interfaces.rest.dto.request.UpdateWorkOrderRequest;
-import com.erp.workorder.interfaces.rest.dto.request.WorkOrderItemRequest;
 import com.erp.workorder.interfaces.rest.dto.response.WorkOrderDetailResponse;
 import com.erp.workorder.interfaces.rest.dto.response.WorkOrderOpenedResponse;
 import com.erp.workorder.interfaces.rest.dto.response.WorkOrderSummaryResponse;

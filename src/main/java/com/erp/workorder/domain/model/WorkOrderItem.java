@@ -1,8 +1,6 @@
 package com.erp.workorder.domain.model;
 
 import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.UUID;
 
 /**
  * A part of the order: the logical reference to the inventory part, the
