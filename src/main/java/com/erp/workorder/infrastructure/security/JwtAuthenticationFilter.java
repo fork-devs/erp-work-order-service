@@ -96,7 +96,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 UUID tenantId;
                 try {
-                    tenantId = UUID.fromString(tenantClaim.toString());
+                    tenantId = com.erp.workorder.domain.model.TenantId.fromString(tenantClaim.toString()).id();
                 } catch (IllegalArgumentException e) {
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "The token's tenant is not valid");
                     return;
