@@ -6,7 +6,6 @@ import com.erp.workorder.support.AbstractWorkOrderIntegrationTest;
 import com.erp.workorder.support.EmbeddedPostgresSupport;
 import com.erp.workorder.support.FakeEventPublisherPort;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 

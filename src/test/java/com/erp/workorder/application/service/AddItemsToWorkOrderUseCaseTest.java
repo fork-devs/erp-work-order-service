@@ -8,7 +8,6 @@ import com.erp.workorder.domain.model.WorkOrderStatus;
 import com.erp.workorder.interfaces.rest.support.TenantContextScope;
 import com.erp.workorder.application.service.QuoteWorkOrderUseCase;
 import com.erp.workorder.support.AbstractWorkOrderIntegrationTest;
-import com.erp.workorder.support.FakeInventoryPort;
 import com.erp.workorder.support.EmbeddedPostgresSupport;
 import com.erp.workorder.support.FakeFleetPort;
 import org.junit.jupiter.api.BeforeEach;

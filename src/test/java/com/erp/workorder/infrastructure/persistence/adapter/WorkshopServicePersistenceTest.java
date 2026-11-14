@@ -1,7 +1,6 @@
 package com.erp.workorder.infrastructure.persistence.adapter;
 
 import com.erp.workorder.domain.model.BranchId;
-import com.erp.workorder.domain.model.ServiceId;
 import com.erp.workorder.domain.model.TenantId;
 import com.erp.workorder.domain.model.WorkshopService;
 import com.erp.workorder.domain.port.UnitOfWork;
@@ -22,7 +21,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WorkshopServicePersistenceTest extends AbstractWorkOrderIntegrationTest {

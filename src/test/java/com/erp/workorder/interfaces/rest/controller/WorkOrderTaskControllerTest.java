@@ -14,7 +14,6 @@ import com.erp.workorder.domain.port.WorkshopServiceRepositoryPort;
 import com.erp.workorder.interfaces.rest.support.TenantContextScope;
 import com.erp.workorder.support.AbstractWorkOrderIntegrationTest;
 import com.erp.workorder.support.EmbeddedPostgresSupport;
-import com.erp.workorder.support.FakeFleetPort;
 import com.erp.workorder.support.FakeInventoryPort;
 import com.erp.workorder.support.TestJwksServer;
 import org.junit.jupiter.api.AfterEach;
@@ -33,7 +32,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
