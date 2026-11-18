@@ -112,7 +112,7 @@ class ManageWorkOrderTaskUseCaseTest {
     @Test
     void rejectsAddTaskToClosedWorkOrder() {
         WorkOrder order = orderRepo.findById(tenantId, workOrderId).get();
-        order.transitionTo(WorkOrderStatus.CANCELADA, UUID.randomUUID(), Instant.now());
+        order.transitionTo(WorkOrderStatus.CANCELLED, UUID.randomUUID(), Instant.now());
         orderRepo.updateStatus(order);
 
         assertThrows(WorkOrderClosedException.class, () ->

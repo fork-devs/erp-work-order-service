@@ -47,7 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * cancellation with a LIVE reservation both release the reserved parts
  * exactly once per part, a repeated release returns nothing twice, and a
  * cancellation that touches nothing (no quote yet, or the machine refuses
- * one from EN_EJECUCION) never calls the inventory's release.
+ * one from IN_PROGRESS) never calls the inventory's release.
  */
 class RejectQuoteAndCancelWorkOrderTest extends AbstractWorkOrderIntegrationTest {
 
@@ -108,9 +108,9 @@ class RejectQuoteAndCancelWorkOrderTest extends AbstractWorkOrderIntegrationTest
         var result = asRequest(tenant, () ->
                 rejectQuote.reject(new RejectQuoteCommand(tenant, order, UUID.randomUUID())));
 
-        assertEquals(WorkOrderStatus.RECHAZADA, result.status());
-        assertEquals(WorkOrderStatus.COTIZADA, result.origin());
-        assertEquals("RECHAZADA", statusOf(order), "the rejection is terminal");
+        assertEquals(WorkOrderStatus.REJECTED, result.status());
+        assertEquals(WorkOrderStatus.QUOTED, result.origin());
+        assertEquals("REJECTED", statusOf(order), "the rejection is terminal");
         assertEquals(claimsBefore + 1, inventory.claimedMovements().size(),
                 "the release returned the part's reservation");
         assertTrue(inventory.claimed("release", ReservationReleaseService.releaseKey(order, part)).isPresent());
@@ -126,8 +126,8 @@ class RejectQuoteAndCancelWorkOrderTest extends AbstractWorkOrderIntegrationTest
         var result = asRequest(tenant, () ->
                 cancelOrder.cancel(new CancelWorkOrderCommand(tenant, order, UUID.randomUUID())));
 
-        assertEquals(WorkOrderStatus.CANCELADA, result.status());
-        assertEquals(WorkOrderStatus.COTIZADA, result.origin());
+        assertEquals(WorkOrderStatus.CANCELLED, result.status());
+        assertEquals(WorkOrderStatus.QUOTED, result.origin());
         assertEquals(claimsBefore + 1, inventory.claimedMovements().size(),
                 "the release broke the live reservation");
         assertTrue(inventory.claimed("release", ReservationReleaseService.releaseKey(order, part)).isPresent());
@@ -157,7 +157,7 @@ class RejectQuoteAndCancelWorkOrderTest extends AbstractWorkOrderIntegrationTest
             rejection.get();
         }
 
-        assertEquals("RECHAZADA", statusOf(order));
+        assertEquals("REJECTED", statusOf(order));
         List<String> releaseKeys = claimedKeys("release");
         assertEquals(1, releaseKeys.size(), "the repeated release returned the stock ONCE");
         assertEquals(ReservationReleaseService.releaseKey(order, part), releaseKeys.get(0));
@@ -172,8 +172,8 @@ class RejectQuoteAndCancelWorkOrderTest extends AbstractWorkOrderIntegrationTest
         var result = asRequest(tenant, () ->
                 cancelOrder.cancel(new CancelWorkOrderCommand(tenant, order, UUID.randomUUID())));
 
-        assertEquals(WorkOrderStatus.CANCELADA, result.status());
-        assertEquals(WorkOrderStatus.EN_DIAGNOSTICO, result.origin());
+        assertEquals(WorkOrderStatus.CANCELLED, result.status());
+        assertEquals(WorkOrderStatus.IN_DIAGNOSIS, result.origin());
         assertEquals(claimsBefore, inventory.claimedMovements().size(),
                 "without a live reservation there is nothing to release");
         assertTrue(inventory.claimedMovements().isEmpty());
@@ -189,7 +189,7 @@ class RejectQuoteAndCancelWorkOrderTest extends AbstractWorkOrderIntegrationTest
                         cancelOrder.cancel(new CancelWorkOrderCommand(tenant, order, UUID.randomUUID()))),
                 "the consumed stock cannot be given back: the machine refuses the cancellation");
 
-        assertEquals("EN_EJECUCION", statusOf(order));
+        assertEquals("IN_PROGRESS", statusOf(order));
         assertTrue(claimedKeys("release").isEmpty(),
                 "a refused cancellation releases nothing");
     }
@@ -215,13 +215,13 @@ class RejectQuoteAndCancelWorkOrderTest extends AbstractWorkOrderIntegrationTest
 
         assertThrows(SagaReservedTransitionException.class,
                 () -> asRequest(tenant, () -> transitionOrder.transition(
-                        new TransitionWorkOrderCommand(tenant, order, WorkOrderStatus.RECHAZADA, UUID.randomUUID()))),
+                        new TransitionWorkOrderCommand(tenant, order, WorkOrderStatus.REJECTED, UUID.randomUUID()))),
                 "the rejection releases the stock through its own door");
         assertThrows(SagaReservedTransitionException.class,
                 () -> asRequest(tenant, () -> transitionOrder.transition(
-                        new TransitionWorkOrderCommand(tenant, order, WorkOrderStatus.CANCELADA, UUID.randomUUID()))),
+                        new TransitionWorkOrderCommand(tenant, order, WorkOrderStatus.CANCELLED, UUID.randomUUID()))),
                 "the cancellation of a quoted order releases through its own door");
-        assertEquals("COTIZADA", statusOf(order));
+        assertEquals("QUOTED", statusOf(order));
     }
 
     // -- setup helpers ---------------------------------------------------
@@ -258,7 +258,7 @@ class RejectQuoteAndCancelWorkOrderTest extends AbstractWorkOrderIntegrationTest
             withItems(tenant, order, items);
         }
         runAsRequest(tenant, () -> transitionOrder.transition(
-                new TransitionWorkOrderCommand(tenant, order, WorkOrderStatus.EN_DIAGNOSTICO, UUID.randomUUID())));
+                new TransitionWorkOrderCommand(tenant, order, WorkOrderStatus.IN_DIAGNOSIS, UUID.randomUUID())));
         return order;
     }
 

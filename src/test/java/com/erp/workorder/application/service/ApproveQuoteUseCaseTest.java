@@ -46,7 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The approval of the stock saga: every reserved part is consumed once,
- * the order lands at EN_EJECUCION only when the inventory committed, and a
+ * the order lands at IN_PROGRESS only when the inventory committed, and a
  * repeated approval claims the SAME keys so the inventory consumes once.
  */
 class ApproveQuoteUseCaseTest extends AbstractWorkOrderIntegrationTest {
@@ -103,9 +103,9 @@ class ApproveQuoteUseCaseTest extends AbstractWorkOrderIntegrationTest {
         var result = asRequest(tenant, () ->
                 approveOrder.approve(new ApproveQuoteCommand(tenant, order, UUID.randomUUID())));
 
-        assertEquals(WorkOrderStatus.EN_EJECUCION, result.status());
-        assertEquals(WorkOrderStatus.COTIZADA, result.origin());
-        assertEquals("EN_EJECUCION", statusOf(order), "the order only advances when the inventory committed");
+        assertEquals(WorkOrderStatus.IN_PROGRESS, result.status());
+        assertEquals(WorkOrderStatus.QUOTED, result.origin());
+        assertEquals("IN_PROGRESS", statusOf(order), "the order only advances when the inventory committed");
 
         assertEquals(claimsBefore + 1, inventory.claimedMovements().size(),
                 "the commit registered ONE consumption movement");
@@ -131,7 +131,7 @@ class ApproveQuoteUseCaseTest extends AbstractWorkOrderIntegrationTest {
                 () -> asRequest(tenant, () ->
                         approveOrder.approve(new ApproveQuoteCommand(tenant, order, UUID.randomUUID()))));
 
-        assertEquals("COTIZADA", statusOf(order), "the order keeps its quoted status");
+        assertEquals("QUOTED", statusOf(order), "the order keeps its quoted status");
         assertEquals(historyBefore, count("work_order_status_history", order),
                 "no approval history row was written");
         assertEquals(itemsBefore, count("work_order_items", order),
@@ -169,7 +169,7 @@ class ApproveQuoteUseCaseTest extends AbstractWorkOrderIntegrationTest {
             launch.get();
         }
 
-        assertEquals("EN_EJECUCION", statusOf(order));
+        assertEquals("IN_PROGRESS", statusOf(order));
         List<String> commitKeys = claimedKeys("commit");
         assertEquals(1, commitKeys.size(), "the repeated approval consumed ONCE");
         assertEquals(ApproveQuoteUseCase.commitKey(order, part), commitKeys.get(0));
@@ -196,9 +196,9 @@ class ApproveQuoteUseCaseTest extends AbstractWorkOrderIntegrationTest {
 
         assertThrows(SagaReservedTransitionException.class,
                 () -> asRequest(tenant, () -> transitionOrder.transition(
-                        new TransitionWorkOrderCommand(tenant, order, WorkOrderStatus.EN_EJECUCION, UUID.randomUUID()))),
+                        new TransitionWorkOrderCommand(tenant, order, WorkOrderStatus.IN_PROGRESS, UUID.randomUUID()))),
                 "the approval is the only door that consumes the reservation");
-        assertEquals("COTIZADA", statusOf(order));
+        assertEquals("QUOTED", statusOf(order));
     }
 
     // -- setup helpers ---------------------------------------------------
@@ -230,7 +230,7 @@ class ApproveQuoteUseCaseTest extends AbstractWorkOrderIntegrationTest {
                     new AddItemsToWorkOrderCommand(tenant, order, List.of(items))));
         }
         runAsRequest(tenant, () -> transitionOrder.transition(
-                new TransitionWorkOrderCommand(tenant, order, WorkOrderStatus.EN_DIAGNOSTICO, UUID.randomUUID())));
+                new TransitionWorkOrderCommand(tenant, order, WorkOrderStatus.IN_DIAGNOSIS, UUID.randomUUID())));
         runAsRequest(tenant, () -> quoteOrder.quote(new QuoteWorkOrderCommand(tenant, order, UUID.randomUUID())));
         return order;
     }

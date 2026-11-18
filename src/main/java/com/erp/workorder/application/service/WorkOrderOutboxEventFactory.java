@@ -29,13 +29,13 @@ public class WorkOrderOutboxEventFactory {
     /** The order's vehicle was delivered back to its customer. */
     public WorkOrderOutboxEvent completed(UUID tenantId, UUID orderId, Instant occurredAt) {
         return new WorkOrderOutboxEvent(COMPLETED, newEventId(orderId, COMPLETED), tenantId,
-                orderId, payloadJson(COMPLETED, tenantId, orderId, "ENTREGADA", occurredAt));
+                orderId, payloadJson(COMPLETED, tenantId, orderId, "DELIVERED", occurredAt));
     }
 
     /** The order was cancelled before or without its stock consumption. */
     public WorkOrderOutboxEvent cancelled(UUID tenantId, UUID orderId, Instant occurredAt) {
         return new WorkOrderOutboxEvent(CANCELLED, newEventId(orderId, CANCELLED), tenantId,
-                orderId, payloadJson(CANCELLED, tenantId, orderId, "CANCELADA", occurredAt));
+                orderId, payloadJson(CANCELLED, tenantId, orderId, "CANCELLED", occurredAt));
     }
 
     private String payloadJson(String eventType, UUID tenantId, UUID orderId,

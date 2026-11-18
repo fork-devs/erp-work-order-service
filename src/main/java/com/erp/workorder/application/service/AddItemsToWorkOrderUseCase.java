@@ -22,7 +22,7 @@ import java.util.UUID;
  * saga reservation at the quote, not with the registration.
  *
  * <p>The aggregate rejects the items when the order already quoted: after
- * {@code COTIZADA} the stock guarantee was claimed by the reservation, and
+ * {@code QUOTED} the stock guarantee was claimed by the reservation, and
  * a terminal state accepts nothing.
  */
 @Component

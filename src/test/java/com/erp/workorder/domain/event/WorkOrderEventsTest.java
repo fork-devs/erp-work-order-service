@@ -37,10 +37,10 @@ class WorkOrderEventsTest {
     void theCancelledEventCarriesPreviousStatus() {
         WorkOrderCancelled event = new WorkOrderCancelled(
                 UUID.randomUUID(), TENANT, UUID.randomUUID(), "WO-000005",
-                UUID.randomUUID(), UUID.randomUUID(), "COTIZADA", Instant.now());
+                UUID.randomUUID(), UUID.randomUUID(), "QUOTED", Instant.now());
 
         assertEquals(TENANT, event.tenantId());
-        assertEquals("COTIZADA", event.previousStatus());
+        assertEquals("QUOTED", event.previousStatus());
         assertNotNull(event.workOrderNumber());
     }
 

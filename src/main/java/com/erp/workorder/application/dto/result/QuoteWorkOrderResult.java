@@ -5,7 +5,7 @@ import com.erp.workorder.domain.model.WorkOrderStatus;
 import java.util.UUID;
 
 /**
- * The quotation outcome: the order at COTIZADA with the status it came
+ * The quotation outcome: the order at QUOTED with the status it came
  * from, or nothing — on failure the caller receives the failure instead of
  * a half-quoted order.
  */

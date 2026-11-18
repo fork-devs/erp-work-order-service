@@ -73,7 +73,7 @@ class WorkOrderOutboxEventsTest extends AbstractWorkOrderIntegrationTest {
                 "the payload carries the tenant");
         assertEquals(order.toString(), payloadFieldOf(order, "WorkOrderCompleted", "orderId"),
                 "the payload carries the order");
-        assertEquals("ENTREGADA", payloadFieldOf(order, "WorkOrderCompleted", "status"),
+        assertEquals("DELIVERED", payloadFieldOf(order, "WorkOrderCompleted", "status"),
                 "the payload carries the status reached");
         assertTrue(eventIdOf(order).isPresent(), "the event carries its consumer identity");
     }
@@ -84,12 +84,12 @@ class WorkOrderOutboxEventsTest extends AbstractWorkOrderIntegrationTest {
         UUID order = openedOrder(tenant, UUID.randomUUID()).orderId();
 
         asRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(
-                tenant, order, WorkOrderStatus.CANCELADA, UUID.randomUUID())));
+                tenant, order, WorkOrderStatus.CANCELLED, UUID.randomUUID())));
 
         assertEquals(1, eventCount(order, "WorkOrderCancelled"));
         assertEquals(tenant.toString(), payloadFieldOf(order, "WorkOrderCancelled", "tenantId"));
         assertEquals(order.toString(), payloadFieldOf(order, "WorkOrderCancelled", "orderId"));
-        assertEquals("CANCELADA", payloadFieldOf(order, "WorkOrderCancelled", "status"));
+        assertEquals("CANCELLED", payloadFieldOf(order, "WorkOrderCancelled", "status"));
     }
 
     @Test
@@ -110,12 +110,12 @@ class WorkOrderOutboxEventsTest extends AbstractWorkOrderIntegrationTest {
         UUID tenant = UUID.randomUUID();
         UUID order = openedOrder(tenant, UUID.randomUUID()).orderId();
 
-        // The cancellation refused by the machine (an order at RECEPCIONADA
-        // CANNOT reach ENTREGADA): nothing moves, nothing records.
+        // The cancellation refused by the machine (an order at RECEIVED
+        // CANNOT reach DELIVERED): nothing moves, nothing records.
         asRequest(tenant, () -> org.junit.jupiter.api.Assertions.assertThrows(
                 InvalidWorkOrderTransitionException.class, () ->
                         transitionOrder.transition(new TransitionWorkOrderCommand(
-                                tenant, order, WorkOrderStatus.ENTREGADA, UUID.randomUUID()))));
+                                tenant, order, WorkOrderStatus.DELIVERED, UUID.randomUUID()))));
 
         assertFalse(anyEventFor(order), "a refused transition published nothing");
     }
@@ -145,15 +145,15 @@ class WorkOrderOutboxEventsTest extends AbstractWorkOrderIntegrationTest {
     private UUID deliveredOrder(UUID tenant, UUID branch) {
         UUID order = openedOrder(tenant, branch).orderId();
         runAsRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(
-                tenant, order, WorkOrderStatus.EN_DIAGNOSTICO, UUID.randomUUID())));
+                tenant, order, WorkOrderStatus.IN_DIAGNOSIS, UUID.randomUUID())));
         runAsRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(
-                tenant, order, WorkOrderStatus.EN_EJECUCION, UUID.randomUUID())));
+                tenant, order, WorkOrderStatus.IN_PROGRESS, UUID.randomUUID())));
         runAsRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(
-                tenant, order, WorkOrderStatus.EN_CONTROL_CALIDAD, UUID.randomUUID())));
+                tenant, order, WorkOrderStatus.IN_QUALITY_CONTROL, UUID.randomUUID())));
         runAsRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(
-                tenant, order, WorkOrderStatus.LISTA, UUID.randomUUID())));
+                tenant, order, WorkOrderStatus.READY, UUID.randomUUID())));
         runAsRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(
-                tenant, order, WorkOrderStatus.ENTREGADA, UUID.randomUUID())));
+                tenant, order, WorkOrderStatus.DELIVERED, UUID.randomUUID())));
         return order;
     }
 

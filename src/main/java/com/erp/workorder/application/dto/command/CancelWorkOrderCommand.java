@@ -4,7 +4,7 @@ import java.util.UUID;
 
 /**
  * The cancellation of a work order. The release ONLY runs when the
- * cancellation breaks a LIVE reservation (a COTIZADA order); a
+ * cancellation breaks a LIVE reservation (a QUOTED order); a
  * cancellation of an order that never quoted has nothing to return and
  * does not touch the inventory.
  */

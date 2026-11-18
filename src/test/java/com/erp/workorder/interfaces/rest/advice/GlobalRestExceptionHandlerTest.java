@@ -66,8 +66,8 @@ class GlobalRestExceptionHandlerTest extends AbstractWorkOrderIntegrationTest {
     void aRefusedTransitionIsAConflictWithTheStableFamilyCode() throws Exception {
         UUID orderId = openedOrder();
 
-        // RECEPCIONADA -> LISTA skips every step: the machine says no.
-        mockMvc.perform(transition(orderId, "LISTA"))
+        // RECEIVED -> READY skips every step: the machine says no.
+        mockMvc.perform(transition(orderId, "READY"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("WORK_ORDER_TRANSITION_INVALID"))
                 .andExpect(jsonPath("$.tenant_id").value(tenant.toString()))

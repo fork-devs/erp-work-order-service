@@ -120,8 +120,8 @@ public class ManageWorkOrderTaskUseCase {
     }
 
     private boolean isClosed(WorkOrderStatus status) {
-        return status == WorkOrderStatus.ENTREGADA
-                || status == WorkOrderStatus.RECHAZADA
-                || status == WorkOrderStatus.CANCELADA;
+        return status == WorkOrderStatus.DELIVERED
+                || status == WorkOrderStatus.REJECTED
+                || status == WorkOrderStatus.CANCELLED;
     }
 }

@@ -37,12 +37,12 @@ class WorkOrderTest {
     @Test
     void theHistoryAccumulatesOneEntryPerTransition() {
         WorkOrder order = fresh();
-        order.transitionTo(WorkOrderStatus.EN_DIAGNOSTICO, MECHANIC, Instant.parse("2026-10-22T15:10:00Z"));
-        order.transitionTo(WorkOrderStatus.COTIZADA, MECHANIC, Instant.parse("2026-10-22T15:20:00Z"));
+        order.transitionTo(WorkOrderStatus.IN_DIAGNOSIS, MECHANIC, Instant.parse("2026-10-22T15:10:00Z"));
+        order.transitionTo(WorkOrderStatus.QUOTED, MECHANIC, Instant.parse("2026-10-22T15:20:00Z"));
 
         assertEquals(3, order.history().size(), "opening plus two transitions");
-        assertEquals(WorkOrderStatus.COTIZADA, order.status());
-        assertEquals(WorkOrderStatus.RECEPCIONADA, order.history().get(1).transition().origin());
+        assertEquals(WorkOrderStatus.QUOTED, order.status());
+        assertEquals(WorkOrderStatus.RECEIVED, order.history().get(1).transition().origin());
     }
 
     @Test
@@ -57,25 +57,25 @@ class WorkOrderTest {
     void aRejectedTransitionLeavesNeitherStatusNorHistory() {
         WorkOrder order = fresh();
         assertThrows(InvalidWorkOrderTransitionException.class,
-                () -> order.transitionTo(WorkOrderStatus.COTIZADA, MECHANIC, Instant.now()));
-        assertEquals(WorkOrderStatus.RECEPCIONADA, order.status());
+                () -> order.transitionTo(WorkOrderStatus.QUOTED, MECHANIC, Instant.now()));
+        assertEquals(WorkOrderStatus.RECEIVED, order.status());
         assertEquals(1, order.history().size(), "only the opening entry");
     }
 
     @Test
     void theDeliveryClosesTheOrderAndItNeverReopens() {
         WorkOrder order = fresh();
-        order.transitionTo(WorkOrderStatus.EN_DIAGNOSTICO, MECHANIC, Instant.parse("2026-10-22T15:10:00Z"));
-        order.transitionTo(WorkOrderStatus.COTIZADA, MECHANIC, Instant.parse("2026-10-22T15:20:00Z"));
-        order.transitionTo(WorkOrderStatus.EN_EJECUCION, MECHANIC, Instant.parse("2026-10-22T15:25:00Z"));
-        order.transitionTo(WorkOrderStatus.EN_CONTROL_CALIDAD, MECHANIC, Instant.parse("2026-10-22T15:30:00Z"));
-        order.transitionTo(WorkOrderStatus.LISTA, MECHANIC, Instant.parse("2026-10-22T15:35:00Z"));
-        order.transitionTo(WorkOrderStatus.ENTREGADA, MECHANIC, Instant.parse("2026-10-22T15:40:00Z"));
+        order.transitionTo(WorkOrderStatus.IN_DIAGNOSIS, MECHANIC, Instant.parse("2026-10-22T15:10:00Z"));
+        order.transitionTo(WorkOrderStatus.QUOTED, MECHANIC, Instant.parse("2026-10-22T15:20:00Z"));
+        order.transitionTo(WorkOrderStatus.IN_PROGRESS, MECHANIC, Instant.parse("2026-10-22T15:25:00Z"));
+        order.transitionTo(WorkOrderStatus.IN_QUALITY_CONTROL, MECHANIC, Instant.parse("2026-10-22T15:30:00Z"));
+        order.transitionTo(WorkOrderStatus.READY, MECHANIC, Instant.parse("2026-10-22T15:35:00Z"));
+        order.transitionTo(WorkOrderStatus.DELIVERED, MECHANIC, Instant.parse("2026-10-22T15:40:00Z"));
 
         assertTrue(order.closedAt().isPresent(), "a delivery closes the order");
         assertTrue(order.status().isTerminal());
         assertThrows(InvalidWorkOrderTransitionException.class,
-                () -> order.transitionTo(WorkOrderStatus.EN_EJECUCION, MECHANIC, Instant.now()));
+                () -> order.transitionTo(WorkOrderStatus.IN_PROGRESS, MECHANIC, Instant.now()));
     }
 
     @Test
@@ -83,10 +83,10 @@ class WorkOrderTest {
         WorkOrder order = fresh();
         order.addItem(new WorkOrderItem(new SparePartRef(UUID.randomUUID()), 2, new BigDecimal("50.00")));
 
-        order.transitionTo(WorkOrderStatus.EN_DIAGNOSTICO, MECHANIC, Instant.now());
+        order.transitionTo(WorkOrderStatus.IN_DIAGNOSIS, MECHANIC, Instant.now());
         order.addItem(new WorkOrderItem(new SparePartRef(UUID.randomUUID()), 1, BigDecimal.ZERO));
 
-        order.transitionTo(WorkOrderStatus.COTIZADA, MECHANIC, Instant.now());
+        order.transitionTo(WorkOrderStatus.QUOTED, MECHANIC, Instant.now());
         assertThrows(IllegalStateException.class,
                 () -> order.addItem(new WorkOrderItem(new SparePartRef(UUID.randomUUID()), 1, BigDecimal.ZERO)),
                 "the reservation is out: items cannot change");
@@ -98,10 +98,10 @@ class WorkOrderTest {
     void aLiveReservationOnlyExistsAtQuoted() {
         WorkOrder order = fresh();
         assertFalse(order.hasLiveReservation());
-        order.transitionTo(WorkOrderStatus.EN_DIAGNOSTICO, MECHANIC, Instant.now());
-        order.transitionTo(WorkOrderStatus.COTIZADA, MECHANIC, Instant.now());
+        order.transitionTo(WorkOrderStatus.IN_DIAGNOSIS, MECHANIC, Instant.now());
+        order.transitionTo(WorkOrderStatus.QUOTED, MECHANIC, Instant.now());
         assertTrue(order.hasLiveReservation());
-        order.transitionTo(WorkOrderStatus.RECHAZADA, MECHANIC, Instant.now());
+        order.transitionTo(WorkOrderStatus.REJECTED, MECHANIC, Instant.now());
         assertFalse(order.hasLiveReservation(), "the rejection released the reservation: it no longer lives");
     }
 }

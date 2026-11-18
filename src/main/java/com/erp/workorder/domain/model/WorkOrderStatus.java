@@ -12,14 +12,14 @@ package com.erp.workorder.domain.model;
  * <p>Two non-obvious transitions are declared on purpose:
  *
  * <ul>
- *   <li>{@code EN_DIAGNOSTICO -> EN_EJECUCION}: labor WITHOUT parts does not
+ *   <li>{@code IN_DIAGNOSIS -> IN_PROGRESS}: labor WITHOUT parts does not
  *   need to go through quoting; the order advances with no saga call.</li>
- *   <li>{@code EN_CONTROL_CALIDAD -> EN_EJECUCION}: a finding in quality
+ *   <li>{@code IN_QUALITY_CONTROL -> IN_PROGRESS}: a finding in quality
  *   control sends the order back to the mechanic, and it is the ONLY step
  *   backwards the lifecycle allows.</li>
  * </ul>
  *
- * <p>{@code ENTREGADA}, {@code RECHAZADA} and {@code CANCELADA} are TERMINAL:
+ * <p>{@code DELIVERED}, {@code REJECTED} and {@code CANCELLED} are TERMINAL:
  * no transition leaves them, and an order never returns to an active status
  * without a declared transition. The state names keep the Spanish code the
  * whole platform uses (they are persisted as literal DB values, matching the
@@ -27,26 +27,26 @@ package com.erp.workorder.domain.model;
  */
 public enum WorkOrderStatus {
 
-    RECEPCIONADA,
-    EN_DIAGNOSTICO,
-    COTIZADA,
-    EN_EJECUCION,
-    EN_CONTROL_CALIDAD,
-    LISTA,
-    ENTREGADA,
-    RECHAZADA,
-    CANCELADA;
+    RECEIVED,
+    IN_DIAGNOSIS,
+    QUOTED,
+    IN_PROGRESS,
+    IN_QUALITY_CONTROL,
+    READY,
+    DELIVERED,
+    REJECTED,
+    CANCELLED;
 
     private static final java.util.Map<WorkOrderStatus, java.util.Set<WorkOrderStatus>> TRANSITIONS = java.util.Map.of(
-            RECEPCIONADA, java.util.Set.of(EN_DIAGNOSTICO, CANCELADA),
-            EN_DIAGNOSTICO, java.util.Set.of(COTIZADA, EN_EJECUCION, CANCELADA),
-            COTIZADA, java.util.Set.of(EN_EJECUCION, RECHAZADA, CANCELADA),
-            EN_EJECUCION, java.util.Set.of(EN_CONTROL_CALIDAD),
-            EN_CONTROL_CALIDAD, java.util.Set.of(LISTA, EN_EJECUCION),
-            LISTA, java.util.Set.of(ENTREGADA),
-            ENTREGADA, java.util.Set.of(),
-            RECHAZADA, java.util.Set.of(),
-            CANCELADA, java.util.Set.of()
+            RECEIVED, java.util.Set.of(IN_DIAGNOSIS, CANCELLED),
+            IN_DIAGNOSIS, java.util.Set.of(QUOTED, IN_PROGRESS, CANCELLED),
+            QUOTED, java.util.Set.of(IN_PROGRESS, REJECTED, CANCELLED),
+            IN_PROGRESS, java.util.Set.of(IN_QUALITY_CONTROL),
+            IN_QUALITY_CONTROL, java.util.Set.of(READY, IN_PROGRESS),
+            READY, java.util.Set.of(DELIVERED),
+            DELIVERED, java.util.Set.of(),
+            REJECTED, java.util.Set.of(),
+            CANCELLED, java.util.Set.of()
     );
 
     /** The transition itself: origin + destination in one immutable value, for errors and history. */
@@ -77,11 +77,11 @@ public enum WorkOrderStatus {
 
     /**
      * Declared cancellation: the one status where the workshop may cancel a
-     * live reservation. The reservation lives only at COTIZADA, so only there
+     * live reservation. The reservation lives only at QUOTED, so only there
      * is there anything to release.
      */
     public boolean admitsCancellationWithLiveReservation() {
-        return this == COTIZADA;
+        return this == QUOTED;
     }
 
     /** The order is closed: no movement touches it again. */

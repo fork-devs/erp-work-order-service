@@ -85,7 +85,7 @@ public final class WorkOrderPersistenceMapper {
             row.setTenantId(order.tenantId().id());
             row.setWorkOrderId(order.id());
             row.setFromStatus(entry.transition() == null ? null : entry.transition().origin().name());
-            row.setToStatus(entry.transition() == null ? WorkOrderStatus.RECEPCIONADA.name()
+            row.setToStatus(entry.transition() == null ? WorkOrderStatus.RECEIVED.name()
                     : entry.transition().destination().name());
             row.setChangedBy(entry.changedBy());
             row.setChangedAt(entry.changedAt());

@@ -110,7 +110,7 @@ class TenantIsolationTest extends AbstractWorkOrderIntegrationTest {
         assertThrows(WorkOrderNotFoundException.class, () ->
                         withTenantOfToken(attacker, () -> transitionOrder.transition(
                                 new TransitionWorkOrderCommand(attacker, victimOrderId,
-                                        WorkOrderStatus.EN_DIAGNOSTICO, UUID.randomUUID()))),
+                                        WorkOrderStatus.IN_DIAGNOSIS, UUID.randomUUID()))),
                 "a foreign order is not readable, not transitable, not visible");
     }
 
@@ -124,10 +124,10 @@ class TenantIsolationTest extends AbstractWorkOrderIntegrationTest {
         assertThrows(WorkOrderNotFoundException.class, () ->
                 withTenantOfToken(attacker, () -> transitionOrder.transition(
                         new TransitionWorkOrderCommand(attacker, victimOrderId,
-                                WorkOrderStatus.CANCELADA, UUID.randomUUID()))), "");
+                                WorkOrderStatus.CANCELLED, UUID.randomUUID()))), "");
 
         assertEquals(1, victimOrdersByTenant(victim), "the victim keeps its order");
-        assertEquals("RECEPCIONADA", victimOrderStatus(victimOrderId), "the status did not move");
+        assertEquals("RECEIVED", victimOrderStatus(victimOrderId), "the status did not move");
         assertEquals(victimHistoryBefore, victimHistoryRows(victimOrderId),
                 "the attacked order gained no history row");
     }
@@ -176,10 +176,10 @@ class TenantIsolationTest extends AbstractWorkOrderIntegrationTest {
         assertThrows(WorkOrderNotFoundException.class, () ->
                 withTenantOfToken(attacker, () -> transitionOrder.transition(
                         new TransitionWorkOrderCommand(victim, victimOrderId,
-                                WorkOrderStatus.EN_DIAGNOSTICO, UUID.randomUUID()))), "");
+                                WorkOrderStatus.IN_DIAGNOSIS, UUID.randomUUID()))), "");
 
         assertTrue(victimOrdersByTenant(victim) == 1, "the victim's order count is untouched");
-        assertEquals("RECEPCIONADA", victimOrderStatus(victimOrderId));
+        assertEquals("RECEIVED", victimOrderStatus(victimOrderId));
     }
 
     @Test
@@ -192,7 +192,7 @@ class TenantIsolationTest extends AbstractWorkOrderIntegrationTest {
         assertThrows(WorkOrderNotFoundException.class, () ->
                 withTenantOfToken(attacker, () -> transitionOrder.transition(
                         new TransitionWorkOrderCommand(attacker, victimOrderId,
-                                WorkOrderStatus.EN_DIAGNOSTICO, UUID.randomUUID()))), "");
+                                WorkOrderStatus.IN_DIAGNOSIS, UUID.randomUUID()))), "");
 
         boolean recorded = securityEvents.list
                 .subList(eventsBefore, securityEvents.list.size())
