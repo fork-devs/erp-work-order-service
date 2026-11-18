@@ -51,11 +51,11 @@ class UnitOfWorkTransactionalityTest extends AbstractWorkOrderIntegrationTest {
         jdbcTemplate.execute("SET LOCAL app.tenant_id = '" + tenantId + "'");
         jdbcTemplate.update(
                 "INSERT INTO work_orders (id, tenant_id, number, customer_id, vehicle_id, branch_id, status) "
-                        + "VALUES (?, ?, ?, gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'COTIZADA')",
+                        + "VALUES (?, ?, ?, gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'QUOTED')",
                 orderId, tenantId, "WO-000001");
         jdbcTemplate.update(
                 "INSERT INTO work_order_status_history (tenant_id, work_order_id, to_status) "
-                        + "VALUES (?, ?, 'COTIZADA')", tenantId, orderId);
+                        + "VALUES (?, ?, 'QUOTED')", tenantId, orderId);
         jdbcTemplate.update(
                 "INSERT INTO work_order_outbox (tenant_id, aggregate_id, event_type, event_id, payload) "
                         + "VALUES (?, ?, 'WorkOrderCompleted', ?, CAST(? AS jsonb))",

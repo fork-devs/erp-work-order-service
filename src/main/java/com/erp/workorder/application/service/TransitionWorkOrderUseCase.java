@@ -81,9 +81,9 @@ public class TransitionWorkOrderUseCase {
      * one the status did not confirm.
      */
     private void recordOutboxEvent(TransitionWorkOrderCommand command, WorkOrder order) {
-        if (command.destination() == WorkOrderStatus.ENTREGADA) {
+        if (command.destination() == WorkOrderStatus.DELIVERED) {
             outbox.record(events.completed(command.tenantId(), order.id(), Instant.now()));
-        } else if (command.destination() == WorkOrderStatus.CANCELADA) {
+        } else if (command.destination() == WorkOrderStatus.CANCELLED) {
             outbox.record(events.cancelled(command.tenantId(), order.id(), Instant.now()));
         }
     }
@@ -95,18 +95,18 @@ public class TransitionWorkOrderUseCase {
      * reservation by calling the free path.
      */
     private void rejectReservedSagaTransitions(WorkOrderStatus origin, WorkOrderStatus destination) {
-        if (origin == WorkOrderStatus.EN_DIAGNOSTICO && destination == WorkOrderStatus.COTIZADA) {
+        if (origin == WorkOrderStatus.IN_DIAGNOSIS && destination == WorkOrderStatus.QUOTED) {
             throw new SagaReservedTransitionException(
                     "the quotation reserves the stock through its own use case: the generic transition "
                             + "does not bypass the reservation");
         }
-        if (origin == WorkOrderStatus.COTIZADA && destination == WorkOrderStatus.EN_EJECUCION) {
+        if (origin == WorkOrderStatus.QUOTED && destination == WorkOrderStatus.IN_PROGRESS) {
             throw new SagaReservedTransitionException(
                     "the approval commits the reserved stock through its own use case: the generic transition "
                             + "does not bypass the consumption");
         }
-        if (origin == WorkOrderStatus.COTIZADA
-                && (destination == WorkOrderStatus.RECHAZADA || destination == WorkOrderStatus.CANCELADA)) {
+        if (origin == WorkOrderStatus.QUOTED
+                && (destination == WorkOrderStatus.REJECTED || destination == WorkOrderStatus.CANCELLED)) {
             throw new SagaReservedTransitionException(
                     "the rejection or the cancellation of a quoted order releases the reserved stock through its "
                             + "own use cases: the generic transition does not bypass the release");

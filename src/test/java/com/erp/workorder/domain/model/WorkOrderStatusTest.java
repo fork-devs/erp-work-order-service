@@ -13,85 +13,85 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * spec scenario is a direct call to the domain.
  *
  * <ul>
- *   <li>A status is skipped: RECEPCIONADA -&gt; COTIZADA is rejected.</li>
- *   <li>A delivered order reopens: ENTREGADA -&gt; EN_EJECUCION is rejected.</li>
- *   <li>The allowed transition applies: RECEPCIONADA -&gt; EN_DIAGNOSTICO.</li>
+ *   <li>A status is skipped: RECEIVED -&gt; QUOTED is rejected.</li>
+ *   <li>A delivered order reopens: DELIVERED -&gt; IN_PROGRESS is rejected.</li>
+ *   <li>The allowed transition applies: RECEIVED -&gt; IN_DIAGNOSIS.</li>
  * </ul>
  */
 class WorkOrderStatusTest {
 
     @Test
     void allowedTransitionApplies() {
-        WorkOrderStatus.Transition transition = WorkOrderStatus.RECEPCIONADA.requireTransitionTo(WorkOrderStatus.EN_DIAGNOSTICO);
+        WorkOrderStatus.Transition transition = WorkOrderStatus.RECEIVED.requireTransitionTo(WorkOrderStatus.IN_DIAGNOSIS);
 
-        assertEquals(WorkOrderStatus.RECEPCIONADA, transition.origin());
-        assertEquals(WorkOrderStatus.EN_DIAGNOSTICO, transition.destination());
+        assertEquals(WorkOrderStatus.RECEIVED, transition.origin());
+        assertEquals(WorkOrderStatus.IN_DIAGNOSIS, transition.destination());
     }
 
     @Test
     void skippingAStatusIsRejected() {
         InvalidWorkOrderTransitionException exception = assertThrows(
                 InvalidWorkOrderTransitionException.class,
-                () -> WorkOrderStatus.RECEPCIONADA.requireTransitionTo(WorkOrderStatus.COTIZADA));
+                () -> WorkOrderStatus.RECEIVED.requireTransitionTo(WorkOrderStatus.QUOTED));
 
-        assertEquals(WorkOrderStatus.RECEPCIONADA, exception.origin());
-        assertEquals(WorkOrderStatus.COTIZADA, exception.destination());
+        assertEquals(WorkOrderStatus.RECEIVED, exception.origin());
+        assertEquals(WorkOrderStatus.QUOTED, exception.destination());
     }
 
     @Test
     void aDeliveredOrderNeverReopens() {
         InvalidWorkOrderTransitionException exception = assertThrows(
                 InvalidWorkOrderTransitionException.class,
-                () -> WorkOrderStatus.ENTREGADA.requireTransitionTo(WorkOrderStatus.EN_EJECUCION));
+                () -> WorkOrderStatus.DELIVERED.requireTransitionTo(WorkOrderStatus.IN_PROGRESS));
 
-        assertEquals(WorkOrderStatus.ENTREGADA, exception.origin());
+        assertEquals(WorkOrderStatus.DELIVERED, exception.origin());
     }
 
     @Test
     void theThreeTerminalStatesNeverLeave() {
-        assertThrows(InvalidWorkOrderTransitionException.class, () -> WorkOrderStatus.ENTREGADA.requireTransitionTo(WorkOrderStatus.LISTA));
-        assertThrows(InvalidWorkOrderTransitionException.class, () -> WorkOrderStatus.RECHAZADA.requireTransitionTo(WorkOrderStatus.EN_DIAGNOSTICO));
-        assertThrows(InvalidWorkOrderTransitionException.class, () -> WorkOrderStatus.CANCELADA.requireTransitionTo(WorkOrderStatus.RECEPCIONADA));
+        assertThrows(InvalidWorkOrderTransitionException.class, () -> WorkOrderStatus.DELIVERED.requireTransitionTo(WorkOrderStatus.READY));
+        assertThrows(InvalidWorkOrderTransitionException.class, () -> WorkOrderStatus.REJECTED.requireTransitionTo(WorkOrderStatus.IN_DIAGNOSIS));
+        assertThrows(InvalidWorkOrderTransitionException.class, () -> WorkOrderStatus.CANCELLED.requireTransitionTo(WorkOrderStatus.RECEIVED));
     }
 
     @Test
     void stayingAtTheSameStatusIsNotATransition() {
-        assertThrows(InvalidWorkOrderTransitionException.class, () -> WorkOrderStatus.EN_EJECUCION.requireTransitionTo(WorkOrderStatus.EN_EJECUCION));
+        assertThrows(InvalidWorkOrderTransitionException.class, () -> WorkOrderStatus.IN_PROGRESS.requireTransitionTo(WorkOrderStatus.IN_PROGRESS));
     }
 
     @Test
     void aNullDestinationIsRejectedWithTheExplicitException() {
         InvalidWorkOrderTransitionException exception = assertThrows(
                 InvalidWorkOrderTransitionException.class,
-                () -> WorkOrderStatus.RECEPCIONADA.requireTransitionTo(null));
+                () -> WorkOrderStatus.RECEIVED.requireTransitionTo(null));
 
         assertNull(exception.destination());
     }
 
     @Test
     void qualityControlBackToExecutionIsTheOnlyStepBackwards() {
-        assertTrue(WorkOrderStatus.EN_CONTROL_CALIDAD.requireTransitionTo(WorkOrderStatus.EN_EJECUCION) != null);
-        assertFalse(WorkOrderStatus.EN_EJECUCION.canTransitionTo(WorkOrderStatus.COTIZADA));
-        assertFalse(WorkOrderStatus.EN_DIAGNOSTICO.canTransitionTo(WorkOrderStatus.RECEPCIONADA));
+        assertTrue(WorkOrderStatus.IN_QUALITY_CONTROL.requireTransitionTo(WorkOrderStatus.IN_PROGRESS) != null);
+        assertFalse(WorkOrderStatus.IN_PROGRESS.canTransitionTo(WorkOrderStatus.QUOTED));
+        assertFalse(WorkOrderStatus.IN_DIAGNOSIS.canTransitionTo(WorkOrderStatus.RECEIVED));
     }
 
     @Test
     void laborWithoutPartsAdvancesWithoutQuoting() {
-        assertTrue(WorkOrderStatus.EN_DIAGNOSTICO.requireTransitionTo(WorkOrderStatus.EN_EJECUCION) != null);
+        assertTrue(WorkOrderStatus.IN_DIAGNOSIS.requireTransitionTo(WorkOrderStatus.IN_PROGRESS) != null);
     }
 
     @Test
     void cancellationWithLiveReservationOnlyAtQuoted() {
-        assertTrue(WorkOrderStatus.COTIZADA.admitsCancellationWithLiveReservation());
-        assertFalse(WorkOrderStatus.EN_DIAGNOSTICO.admitsCancellationWithLiveReservation());
-        assertFalse(WorkOrderStatus.EN_EJECUCION.admitsCancellationWithLiveReservation());
+        assertTrue(WorkOrderStatus.QUOTED.admitsCancellationWithLiveReservation());
+        assertFalse(WorkOrderStatus.IN_DIAGNOSIS.admitsCancellationWithLiveReservation());
+        assertFalse(WorkOrderStatus.IN_PROGRESS.admitsCancellationWithLiveReservation());
     }
 
     @Test
     void terminalStatesReportThemselvesAsTerminal() {
-        assertTrue(WorkOrderStatus.ENTREGADA.isTerminal());
-        assertTrue(WorkOrderStatus.RECHAZADA.isTerminal());
-        assertTrue(WorkOrderStatus.CANCELADA.isTerminal());
-        assertFalse(WorkOrderStatus.RECEPCIONADA.isTerminal());
+        assertTrue(WorkOrderStatus.DELIVERED.isTerminal());
+        assertTrue(WorkOrderStatus.REJECTED.isTerminal());
+        assertTrue(WorkOrderStatus.CANCELLED.isTerminal());
+        assertFalse(WorkOrderStatus.RECEIVED.isTerminal());
     }
 }

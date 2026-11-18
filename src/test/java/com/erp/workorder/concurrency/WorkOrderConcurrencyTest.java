@@ -130,7 +130,7 @@ class WorkOrderConcurrencyTest extends AbstractWorkOrderIntegrationTest {
                 "a race loser is either a winner or a refusal: " + outcome.error));
 
         assertTrue(outcomes.stream().anyMatch(outcome -> outcome.succeeded),
-                "at least one quote carried the order to COTIZADA");
+                "at least one quote carried the order to QUOTED");
         // The racing attempts may repeat the WIRE call; the claim by SAME key
         // is what creates the reservation, and it happens exactly once — the
         // echo is the first confirmation, not a second reservation.
@@ -157,7 +157,7 @@ class WorkOrderConcurrencyTest extends AbstractWorkOrderIntegrationTest {
                 "a race loser is either a winner or a refusal: " + outcome.error));
 
         assertTrue(outcomes.stream().anyMatch(outcome -> outcome.succeeded),
-                "at least one approval carried the order to EN_EJECUCION");
+                "at least one approval carried the order to IN_PROGRESS");
         // ONE reserve (from the quote) and ONE commit: the second approval's
         // claim found the commit already consumed under the SAME idempotency
         // key and came back as its echo, not as a second consumption.
@@ -218,17 +218,17 @@ class WorkOrderConcurrencyTest extends AbstractWorkOrderIntegrationTest {
                 UUID.randomUUID(), UUID.randomUUID(), null);
     }
 
-    /** open -> EN_DIAGNOSTICO -> items: ready for the quote. */
+    /** open -> IN_DIAGNOSIS -> items: ready for the quote. */
     private UUID diagnosableWithItems(UUID tenant) {
         UUID orderId = open(tenant).orderId();
-        transitionOrderTo(tenant, orderId, WorkOrderStatus.EN_DIAGNOSTICO);
+        transitionOrderTo(tenant, orderId, WorkOrderStatus.IN_DIAGNOSIS);
         asRequest(tenant, () -> addItems.addItems(new AddItemsToWorkOrderCommand(
                 tenant, orderId, List.of(new WorkOrderItemCommand(
                         UUID.randomUUID(), 2, new BigDecimal("30.00"))))));
         return orderId;
     }
 
-    /** open -> EN_DIAGNOSTICO -> items -> quote: ready for the approval. */
+    /** open -> IN_DIAGNOSIS -> items -> quote: ready for the approval. */
     private UUID quotedOrder(UUID tenant) {
         UUID orderId = diagnosableWithItems(tenant);
         asRequest(tenant, () -> quoteOrder.quote(

@@ -19,7 +19,7 @@ import java.util.UUID;
 
 /**
  * Approves a quotation: every reserved part is CONSUMED in the inventory
- * and ONLY then does the order land at EN_EJECUCION. Everything happens
+ * and ONLY then does the order land at IN_PROGRESS. Everything happens
  * in ONE transaction:
  *
  * <ul>
@@ -28,15 +28,15 @@ import java.util.UUID;
  *   ({@code wo:{orderId}:commit:{partId}}) — a repeated approval claims
  *   the key once and consumes once.</li>
  *   <li>A rejected or unavailable commit aborts the transaction: the order
- *   keeps COTIZADA with its live reservation, with no history row.</li>
+ *   keeps QUOTED with its live reservation, with no history row.</li>
  *   <li>Consuming is NOT undone: the inventory does not un-consume, so the
- *   approval only happens from COTIZADA, while the reservation is alive.</li>
+ *   approval only happens from QUOTED, while the reservation is alive.</li>
  * </ul>
  */
 @Component
 public class ApproveQuoteUseCase {
 
-    private static final WorkOrderStatus DESTINATION = WorkOrderStatus.EN_EJECUCION;
+    private static final WorkOrderStatus DESTINATION = WorkOrderStatus.IN_PROGRESS;
 
     private final WorkOrderRepositoryPort repository;
     private final InventoryPort inventory;

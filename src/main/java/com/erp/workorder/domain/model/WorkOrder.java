@@ -36,7 +36,7 @@ public class WorkOrder {
     /** How many history entries the persistence layer already wrote; the rest are pending. */
     private int persistedHistorySize;
 
-    /** Creates the order at RECEPCIONADA, its first status, with the opening history entry. */
+    /** Creates the order at RECEIVED, its first status, with the opening history entry. */
     public static WorkOrder opened(
             UUID id,
             TenantId tenantId,
@@ -49,7 +49,7 @@ public class WorkOrder {
             UUID openedBy
     ) {
         return new WorkOrder(id, tenantId, number, customer, vehicle, branch,
-                WorkOrderStatus.RECEPCIONADA, diagnosis, openedAt, openedBy);
+                WorkOrderStatus.RECEIVED, diagnosis, openedAt, openedBy);
     }
 
     /** Rehydrates from the persistence read view: same status and history exactly as stored. */
@@ -178,8 +178,8 @@ public class WorkOrder {
      * items without a reservation; terminal states accept nothing.
      */
     public void addItem(WorkOrderItem item) {
-        if (status == WorkOrderStatus.COTIZADA
-                || status == WorkOrderStatus.EN_EJECUCION
+        if (status == WorkOrderStatus.QUOTED
+                || status == WorkOrderStatus.IN_PROGRESS
                 || status.isTerminal()) {
             throw new IllegalStateException("items of a " + status
                     + " order cannot change: the stock guarantee was claimed by the saga");
@@ -189,7 +189,7 @@ public class WorkOrder {
 
     /** Writes the workshop diagnosis while the order still happens to be under diagnosis. */
     public void diagnose(String diagnosis, MechanicRef assignedMechanic) {
-        if (status != WorkOrderStatus.RECEPCIONADA && status != WorkOrderStatus.EN_DIAGNOSTICO) {
+        if (status != WorkOrderStatus.RECEIVED && status != WorkOrderStatus.IN_DIAGNOSIS) {
             throw new IllegalStateException("the diagnosis is written before quoting, not at " + status);
         }
         this.diagnosis = diagnosis;
@@ -208,9 +208,9 @@ public class WorkOrder {
         }
     }
 
-    /** The reservation lives only at COTIZADA, so only there can it be released. */
+    /** The reservation lives only at QUOTED, so only there can it be released. */
     public boolean hasLiveReservation() {
-        return status == WorkOrderStatus.COTIZADA;
+        return status == WorkOrderStatus.QUOTED;
     }
 
     /** The history entries the persistence layer has not written yet. */

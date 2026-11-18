@@ -16,7 +16,7 @@ import java.util.UUID;
  * idempotency key ({@code wo:{orderId}:release:{partId}}), so the release
  * repeated RETURNS NOTHING TWICE — the inventory's claim dedups it.
  *
- * <p>The release NEVER runs for a consumed reservation (EN_EJECUCION or
+ * <p>The release NEVER runs for a consumed reservation (IN_PROGRESS or
  * later): the inventory cannot undo a consumption and the call would fake
  * a return of stock that never came back.
  */
@@ -31,10 +31,10 @@ public class ReservationReleaseService {
 
     /**
      * Whether the reservation is still alive: the reservation only lives
-     * at COTIZADA — quoted (reserved) but not yet consumed.
+     * at QUOTED — quoted (reserved) but not yet consumed.
      */
     public static boolean reservationIsAlive(WorkOrderStatus currentStatus) {
-        return currentStatus == WorkOrderStatus.COTIZADA;
+        return currentStatus == WorkOrderStatus.QUOTED;
     }
 
     /** Releases every part's reservation of this order, once per part. */

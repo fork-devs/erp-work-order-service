@@ -42,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The quotation of the stock saga: the order lands at COTIZADA only when
+ * The quotation of the stock saga: the order lands at QUOTED only when
  * the inventory accepted EVERY part's reservation, each part travels with
  * its own idempotency key derived from the order, a business rejection
  * leaves the order unchanged, and a repeated quotation claims ONE
@@ -99,9 +99,9 @@ class QuoteWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
         var result = asRequest(tenant, () ->
                 quoteOrder.quote(new QuoteWorkOrderCommand(tenant, order, UUID.randomUUID())));
 
-        assertEquals(WorkOrderStatus.COTIZADA, result.status());
-        assertEquals(WorkOrderStatus.EN_DIAGNOSTICO, result.origin());
-        assertEquals("COTIZADA", statusOf(order), "the order only advances when the inventory confirmed");
+        assertEquals(WorkOrderStatus.QUOTED, result.status());
+        assertEquals(WorkOrderStatus.IN_DIAGNOSIS, result.origin());
+        assertEquals("QUOTED", statusOf(order), "the order only advances when the inventory confirmed");
 
         assertEquals(1, inventory.reserveRequests().size(), "one reservation call per registered item");
         StockReservation sent = inventory.reserveRequests().get(0);
@@ -130,7 +130,7 @@ class QuoteWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
                         quoteOrder.quote(new QuoteWorkOrderCommand(tenant, order, UUID.randomUUID()))),
                 "the failure is the saga's rejection, not a client error propagation");
 
-        assertEquals("EN_DIAGNOSTICO", statusOf(order), "the order keeps the previous status");
+        assertEquals("IN_DIAGNOSIS", statusOf(order), "the order keeps the previous status");
         assertEquals(historyBefore, count("work_order_status_history", order),
                 "no quotation history row was written");
         assertEquals(itemsBefore, count("work_order_items", order),
@@ -172,7 +172,7 @@ class QuoteWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
             launch.get();
         }
 
-        assertEquals("COTIZADA", statusOf(order));
+        assertEquals("QUOTED", statusOf(order));
         assertEquals(itemsBefore, count("work_order_items", order), "the quotation never changes the items");
         assertEquals(2, inventory.claimedMovements().size(),
                 "the same key claims ONE movement: a repeat does not reserve twice");
@@ -195,7 +195,7 @@ class QuoteWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
         var result = asRequest(tenant, () ->
                 quoteOrder.quote(new QuoteWorkOrderCommand(tenant, order, UUID.randomUUID())));
 
-        assertEquals(WorkOrderStatus.COTIZADA, result.status());
+        assertEquals(WorkOrderStatus.QUOTED, result.status());
         assertTrue(inventory.reserveRequests().isEmpty(),
                 "pure labor quotes nothing: no part, no stock call");
     }
@@ -254,7 +254,7 @@ class QuoteWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
                     new AddItemsToWorkOrderCommand(tenant, order, List.of(items))));
         }
         runAsRequest(tenant, () -> transitionOrder.transition(
-                new TransitionWorkOrderCommand(tenant, order, WorkOrderStatus.EN_DIAGNOSTICO, UUID.randomUUID())));
+                new TransitionWorkOrderCommand(tenant, order, WorkOrderStatus.IN_DIAGNOSIS, UUID.randomUUID())));
         return order;
     }
 
