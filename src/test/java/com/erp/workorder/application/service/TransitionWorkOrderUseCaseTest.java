@@ -100,11 +100,11 @@ class TransitionWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
         UUID orderId = openedOrder(tenant).orderId();
 
         TransitionWorkOrderResult result = asRequest(tenant, () -> transitionOrder.transition(
-                new TransitionWorkOrderCommand(tenant, orderId, WorkOrderStatus.EN_DIAGNOSTICO, UUID.randomUUID())));
+                new TransitionWorkOrderCommand(tenant, orderId, WorkOrderStatus.IN_DIAGNOSIS, UUID.randomUUID())));
 
-        assertEquals(WorkOrderStatus.EN_DIAGNOSTICO, result.status());
-        assertEquals(WorkOrderStatus.RECEPCIONADA, result.origin());
-        assertEquals("EN_DIAGNOSTICO", statusOf(orderId));
+        assertEquals(WorkOrderStatus.IN_DIAGNOSIS, result.status());
+        assertEquals(WorkOrderStatus.RECEIVED, result.origin());
+        assertEquals("IN_DIAGNOSIS", statusOf(orderId));
         assertEquals(2, count("work_order_status_history", orderId), "opening plus this transition");
     }
 
@@ -116,10 +116,10 @@ class TransitionWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
 
         assertThrows(InvalidWorkOrderTransitionException.class,
                 () -> asRequest(tenant, () -> transitionOrder.transition(
-                        new TransitionWorkOrderCommand(tenant, orderId, WorkOrderStatus.COTIZADA, UUID.randomUUID()))),
-                "RECEPCIONADA -> COTIZADA skips the diagnosis: the machine does not declare it");
+                        new TransitionWorkOrderCommand(tenant, orderId, WorkOrderStatus.QUOTED, UUID.randomUUID()))),
+                "RECEIVED -> QUOTED skips the diagnosis: the machine does not declare it");
 
-        assertEquals("RECEPCIONADA", statusOf(orderId), "the status did not move");
+        assertEquals("RECEIVED", statusOf(orderId), "the status did not move");
         assertEquals(historyBefore, count("work_order_status_history", orderId),
                 "no history row was written for the rejected transition");
     }
@@ -131,27 +131,27 @@ class TransitionWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
         UUID actor = UUID.randomUUID();
 
         asRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(
-                tenant, orderId, WorkOrderStatus.EN_DIAGNOSTICO, actor)));
-        // EN_DIAGNOSTICO -> COTIZADA belongs to the stock saga: the generic
+                tenant, orderId, WorkOrderStatus.IN_DIAGNOSIS, actor)));
+        // IN_DIAGNOSIS -> QUOTED belongs to the stock saga: the generic
         // transition refuses to bypass the reservation.
         asRequest(tenant, () -> quoteOrder.quote(new QuoteWorkOrderCommand(tenant, orderId, actor)));
-        // COTIZADA -> EN_EJECUCION belongs to the stock saga: the approval
+        // QUOTED -> IN_PROGRESS belongs to the stock saga: the approval
         // consumes the reserved stock through its own use case.
         asRequest(tenant, () -> approveOrder.approve(new ApproveQuoteCommand(tenant, orderId, actor)));
         asRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(
-                tenant, orderId, WorkOrderStatus.EN_CONTROL_CALIDAD, actor)));
+                tenant, orderId, WorkOrderStatus.IN_QUALITY_CONTROL, actor)));
         asRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(
-                tenant, orderId, WorkOrderStatus.LISTA, actor)));
+                tenant, orderId, WorkOrderStatus.READY, actor)));
         asRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(
-                tenant, orderId, WorkOrderStatus.ENTREGADA, actor)));
+                tenant, orderId, WorkOrderStatus.DELIVERED, actor)));
 
-        assertEquals("ENTREGADA", statusOf(orderId));
+        assertEquals("DELIVERED", statusOf(orderId));
 
         int historyAtDelivery = count("work_order_status_history", orderId);
         assertThrows(InvalidWorkOrderTransitionException.class,
                 () -> asRequest(tenant, () -> transitionOrder.transition(new TransitionWorkOrderCommand(
-                        tenant, orderId, WorkOrderStatus.EN_EJECUCION, actor))),
-                "ENTREGADA is terminal");
+                        tenant, orderId, WorkOrderStatus.IN_PROGRESS, actor))),
+                "DELIVERED is terminal");
         assertEquals(historyAtDelivery, count("work_order_status_history", orderId),
                 "the closed order writes nothing more");
 

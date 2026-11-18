@@ -20,7 +20,7 @@ import java.util.UUID;
 /**
  * Quotes a work order: the registered parts are RESERVED in the inventory
  * through the saga, and ONLY when every reservation succeeded does the
- * order land at COTIZADA. Everything happens in ONE transaction:
+ * order land at QUOTED. Everything happens in ONE transaction:
  *
  * <ul>
  *   <li>The reservation call is made for every registered item, with the
@@ -29,15 +29,15 @@ import java.util.UUID;
  *   orderId as the driving reference — so the inventory can arbitrate an
  *   unknown outcome with its claim.</li>
  *   <li>A rejected or unavailable reservation aborts the transaction: the
- *   order keeps EN_DIAGNOSTICO, with no history row and no quoting trace.</li>
+ *   order keeps IN_DIAGNOSIS, with no history row and no quoting trace.</li>
  *   <li>An order with NO items quotes directly: pure labor needs no stock
- *   and the machine declares EN_DIAGNOSTICO -&gt; COTIZADA for it too.</li>
+ *   and the machine declares IN_DIAGNOSIS -&gt; QUOTED for it too.</li>
  * </ul>
  */
 @Component
 public class QuoteWorkOrderUseCase {
 
-    private static final WorkOrderStatus DESTINATION = WorkOrderStatus.COTIZADA;
+    private static final WorkOrderStatus DESTINATION = WorkOrderStatus.QUOTED;
 
     private final WorkOrderRepositoryPort repository;
     private final InventoryPort inventory;

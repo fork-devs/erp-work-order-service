@@ -208,7 +208,7 @@ public class WorkOrderController {
     public ResponseEntity<WorkOrderTransitionResponse> complete(@PathVariable UUID orderId) {
         WorkOrder order = repository.findById(RequestPrincipal.tenant(), orderId)
                 .orElseThrow(() -> new com.erp.workorder.application.exception.WorkOrderNotFoundException("the order does not exist in this tenant"));
-        WorkOrderStatus destination = order.status() == WorkOrderStatus.LISTA ? WorkOrderStatus.ENTREGADA : WorkOrderStatus.LISTA;
+        WorkOrderStatus destination = order.status() == WorkOrderStatus.READY ? WorkOrderStatus.DELIVERED : WorkOrderStatus.READY;
         TransitionWorkOrderResult result = transitionOrder.transition(new TransitionWorkOrderCommand(
                 RequestPrincipal.tenant(), orderId, destination, RequestPrincipal.userId()));
         return ResponseEntity.ok(toTransition(result));

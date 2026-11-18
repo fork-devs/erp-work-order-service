@@ -107,7 +107,7 @@ class MigrationSafetyTest extends AbstractWorkOrderIntegrationTest {
     void thePerTenantUniquenessArbitratesTheNumber() throws SQLException {
         UUID tenant = UUID.randomUUID();
         String sql = "INSERT INTO work_orders (tenant_id, number, customer_id, vehicle_id, branch_id, status) "
-                + "VALUES (?, ?, gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'RECEPCIONADA')";
+                + "VALUES (?, ?, gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'RECEIVED')";
         try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection()) {
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setObject(1, tenant);

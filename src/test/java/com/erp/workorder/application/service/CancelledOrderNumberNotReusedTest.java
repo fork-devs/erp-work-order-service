@@ -79,10 +79,10 @@ class CancelledOrderNumberNotReusedTest extends AbstractWorkOrderIntegrationTest
                 tenant, customer, vehicle, UUID.randomUUID(), UUID.randomUUID(), null);
 
         OpenWorkOrderResult cancelled = asRequest(tenant, () -> openOrder.open(open));
-        // RECEPCIONADA -> EN_DIAGNOSTICO -> COTIZADA -> CANCELADA
+        // RECEIVED -> IN_DIAGNOSIS -> QUOTED -> CANCELLED
         asRequest(tenant, () -> transition.transition(new TransitionWorkOrderCommand(
-                tenant, cancelled.orderId(), WorkOrderStatus.EN_DIAGNOSTICO, UUID.randomUUID())));
-        // EN_DIAGNOSTICO -> COTIZADA belongs to the stock saga: it runs
+                tenant, cancelled.orderId(), WorkOrderStatus.IN_DIAGNOSIS, UUID.randomUUID())));
+        // IN_DIAGNOSIS -> QUOTED belongs to the stock saga: it runs
         // through the quote use case, never through the generic transition.
         asRequest(tenant, () -> quoteOrder.quote(new QuoteWorkOrderCommand(
                 tenant, cancelled.orderId(), UUID.randomUUID())));
@@ -110,7 +110,7 @@ class CancelledOrderNumberNotReusedTest extends AbstractWorkOrderIntegrationTest
 
         OpenWorkOrderResult result = asRequest(tenant, () -> openOrder.open(open));
         asRequest(tenant, () -> transition.transition(new TransitionWorkOrderCommand(
-                tenant, orderIdOf(result), WorkOrderStatus.CANCELADA, UUID.randomUUID())));
+                tenant, orderIdOf(result), WorkOrderStatus.CANCELLED, UUID.randomUUID())));
 
         try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection();
              Statement statement = connection.createStatement();

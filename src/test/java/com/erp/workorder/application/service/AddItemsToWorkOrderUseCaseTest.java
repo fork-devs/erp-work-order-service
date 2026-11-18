@@ -128,13 +128,13 @@ class AddItemsToWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
         UUID order = openedOrderId(tenant);
         asRequest(tenant, () -> addItems.addItems(
                 withItems(tenant, order, new WorkOrderItemCommand(UUID.randomUUID(), 1, BigDecimal.ZERO))));
-        // RECEPCIONADA -> EN_DIAGNOSTICO -> COTIZADA: the quote reserved the stock.
-        transitionTo(tenant, order, WorkOrderStatus.EN_DIAGNOSTICO);
-        transitionTo(tenant, order, WorkOrderStatus.COTIZADA);
+        // RECEIVED -> IN_DIAGNOSIS -> QUOTED: the quote reserved the stock.
+        transitionTo(tenant, order, WorkOrderStatus.IN_DIAGNOSIS);
+        transitionTo(tenant, order, WorkOrderStatus.QUOTED);
 
         assertThrows(IllegalStateException.class, () -> asRequest(tenant, () -> addItems.addItems(
                 withItems(tenant, order, new WorkOrderItemCommand(UUID.randomUUID(), 1, BigDecimal.ZERO)))),
-                "after COTIZADA the stock guarantee was claimed");
+                "after QUOTED the stock guarantee was claimed");
     }
 
     @Test
@@ -151,8 +151,8 @@ class AddItemsToWorkOrderUseCaseTest extends AbstractWorkOrderIntegrationTest {
     }
 
     private void transitionTo(UUID tenant, UUID orderId, WorkOrderStatus destination) {
-        if (destination == WorkOrderStatus.COTIZADA) {
-            // EN_DIAGNOSTICO -&gt; COTIZADA belongs to the stock saga: the
+        if (destination == WorkOrderStatus.QUOTED) {
+            // IN_DIAGNOSIS -&gt; QUOTED belongs to the stock saga: the
             // generic transition refuses to bypass the reservation.
             try (TenantContextScope scope = TenantContextScope.forTenant(tenant)) {
                 quoteOrder.quote(new com.erp.workorder.application.dto.command.QuoteWorkOrderCommand(

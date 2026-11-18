@@ -35,14 +35,14 @@ CREATE TABLE IF NOT EXISTS work_orders (
     vehicle_id  UUID NOT NULL,
     branch_id   UUID NOT NULL,
     mechanic_id UUID,
-    status      VARCHAR(24) NOT NULL DEFAULT 'RECEPCIONADA',
+    status      VARCHAR(24) NOT NULL DEFAULT 'RECEIVED',
     diagnosis   TEXT,
     opened_at   TIMESTAMP NOT NULL DEFAULT now(),
     closed_at   TIMESTAMP,
     CONSTRAINT uq_work_order_tenant_number UNIQUE (tenant_id, number),
     CONSTRAINT ck_work_order_status CHECK (
-        status IN ('RECEPCIONADA', 'EN_DIAGNOSTICO', 'COTIZADA', 'EN_EJECUCION',
-                   'EN_CONTROL_CALIDAD', 'LISTA', 'ENTREGADA', 'RECHAZADA', 'CANCELADA')
+        status IN ('RECEIVED', 'IN_DIAGNOSIS', 'QUOTED', 'IN_PROGRESS',
+                   'IN_QUALITY_CONTROL', 'READY', 'DELIVERED', 'REJECTED', 'CANCELLED')
     )
 );
 
@@ -94,8 +94,8 @@ CREATE TABLE IF NOT EXISTS work_order_status_history (
     changed_by    UUID,
     changed_at    TIMESTAMP NOT NULL DEFAULT now(),
     CONSTRAINT ck_work_order_history_status CHECK (
-        to_status IN ('RECEPCIONADA', 'EN_DIAGNOSTICO', 'COTIZADA', 'EN_EJECUCION',
-                      'EN_CONTROL_CALIDAD', 'LISTA', 'ENTREGADA', 'RECHAZADA', 'CANCELADA')
+        to_status IN ('RECEIVED', 'IN_DIAGNOSIS', 'QUOTED', 'IN_PROGRESS',
+                      'IN_QUALITY_CONTROL', 'READY', 'DELIVERED', 'REJECTED', 'CANCELLED')
     )
 );
 

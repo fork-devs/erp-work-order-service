@@ -88,7 +88,7 @@ class WorkOrderControllerTest extends AbstractWorkOrderIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.tenantId").value(tenant.toString()))
                 .andExpect(jsonPath("$.number").isNotEmpty())
-                .andExpect(jsonPath("$.status").value("RECEPCIONADA"))
+                .andExpect(jsonPath("$.status").value("RECEIVED"))
                 .andReturn();
 
         // The request body tried to slip ANOTHER tenant in; the database keeps
@@ -117,14 +117,14 @@ class WorkOrderControllerTest extends AbstractWorkOrderIntegrationTest {
     @Test
     void theQuoteAppliesThroughItsOwnEndpointAndTheMechanicCannotApprove() throws Exception {
         UUID orderId = openedOrder();
-        move(orderId, "EN_DIAGNOSTICO");
+        move(orderId, "IN_DIAGNOSIS");
         addItems(orderId);
 
         mockMvc.perform(post("/api/v1/work-orders/" + orderId + "/quote")
                         .header("Authorization", "Bearer " + asesorToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.origin").value("EN_DIAGNOSTICO"))
-                .andExpect(jsonPath("$.status").value("COTIZADA"));
+                .andExpect(jsonPath("$.origin").value("IN_DIAGNOSIS"))
+                .andExpect(jsonPath("$.status").value("QUOTED"));
 
         // The consumer role cannot decide the workshop's money: approving is
         // a WRITER's decision.
@@ -135,16 +135,16 @@ class WorkOrderControllerTest extends AbstractWorkOrderIntegrationTest {
         mockMvc.perform(post("/api/v1/work-orders/" + orderId + "/approve")
                         .header("Authorization", "Bearer " + asesorToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.origin").value("COTIZADA"))
-                .andExpect(jsonPath("$.status").value("EN_EJECUCION"));
+                .andExpect(jsonPath("$.origin").value("QUOTED"))
+                .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
     }
 
     @Test
     void theRejectionDoorAnswersThroughTheApiAndLeavesTheReservationsReleased() throws Exception {
         UUID orderId = openedOrder();
-        move(orderId, "EN_DIAGNOSTICO");
+        move(orderId, "IN_DIAGNOSIS");
         addItems(orderId);
-        move(orderId, "COTIZADA", "/quote");
+        move(orderId, "QUOTED", "/quote");
 
         // The quote reserved ONE item exactly once.
         assertEquals(1, inventory.reserveRequests().size());
@@ -152,7 +152,7 @@ class WorkOrderControllerTest extends AbstractWorkOrderIntegrationTest {
         mockMvc.perform(post("/api/v1/work-orders/" + orderId + "/reject")
                         .header("Authorization", "Bearer " + asesorToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("RECHAZADA"));
+                .andExpect(jsonPath("$.status").value("REJECTED"));
 
         // The rejection released; it did NOT try to reserve again.
         assertEquals(1, inventory.reserveRequests().size());
@@ -255,10 +255,10 @@ class WorkOrderControllerTest extends AbstractWorkOrderIntegrationTest {
                         .header("Authorization", "Bearer " + asesorToken))
                 .andExpect(status().isNoContent());
 
-        // Verify status moved to CANCELADA
+        // Verify status moved to CANCELLED
         mockMvc.perform(get("/api/v1/work-orders/" + orderId)
                         .header("Authorization", "Bearer " + asesorToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("CANCELADA"));
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
     }
 }

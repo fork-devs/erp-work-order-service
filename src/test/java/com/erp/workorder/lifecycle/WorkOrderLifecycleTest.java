@@ -102,28 +102,28 @@ class WorkOrderLifecycleTest extends AbstractWorkOrderIntegrationTest {
         assertEquals(1, inventory.reserveRequests().size(), "one reserve, once");
         var approved = asRequest(tenant, () ->
                 approveOrder.approve(new ApproveQuoteCommand(tenant, orderId, UUID.randomUUID())));
-        assertEquals("EN_EJECUCION", approved.status().name());
+        assertEquals("IN_PROGRESS", approved.status().name());
         assertFalse(inventory.claimed("commit", commitKey(orderId)).isEmpty(),
                 "the commit was claimed through the approval door");
 
         // The machine's own steps carry the vehicle forward: control de
         // calidad, lista, entrega.
         TransitionWorkOrderResult atQuality = asRequest(tenant, () ->
-                transitionOrder.transition(transition(tenant, orderId, WorkOrderStatus.EN_CONTROL_CALIDAD)));
+                transitionOrder.transition(transition(tenant, orderId, WorkOrderStatus.IN_QUALITY_CONTROL)));
         TransitionWorkOrderResult listed = asRequest(tenant, () ->
-                transitionOrder.transition(transition(tenant, orderId, WorkOrderStatus.LISTA)));
+                transitionOrder.transition(transition(tenant, orderId, WorkOrderStatus.READY)));
         TransitionWorkOrderResult delivered = asRequest(tenant, () ->
-                transitionOrder.transition(transition(tenant, orderId, WorkOrderStatus.ENTREGADA)));
+                transitionOrder.transition(transition(tenant, orderId, WorkOrderStatus.DELIVERED)));
 
-        assertEquals("EN_CONTROL_CALIDAD", atQuality.status().name());
-        assertEquals("LISTA", listed.status().name());
-        assertEquals("ENTREGADA", delivered.status().name());
+        assertEquals("IN_QUALITY_CONTROL", atQuality.status().name());
+        assertEquals("READY", listed.status().name());
+        assertEquals("DELIVERED", delivered.status().name());
 
         // The terminal state's event left through the outbox.
         assertEquals(1, eventCount(orderId, "WorkOrderCompleted"),
                 "the delivery published the order's completion once");
         assertEquals(tenant.toString(), payloadFieldOf(orderId, "WorkOrderCompleted", "tenantId"));
-        assertEquals("ENTREGADA", payloadFieldOf(orderId, "WorkOrderCompleted", "status"));
+        assertEquals("DELIVERED", payloadFieldOf(orderId, "WorkOrderCompleted", "status"));
         assertFalse(anyEventOfKind(orderId, "WorkOrderCancelled"), "a delivered order was never cancelled");
     }
 
@@ -133,7 +133,7 @@ class WorkOrderLifecycleTest extends AbstractWorkOrderIntegrationTest {
         UUID orderId = quotedOrder(tenant).orderId();
 
         var rejected = asRequest(tenant, () -> rejectOrder.reject(rejection(tenant, orderId)));
-        assertEquals("RECHAZADA", rejected.status().name());
+        assertEquals("REJECTED", rejected.status().name());
 
         // Nothing consumed, everything released.
         assertEquals(1, inventory.reserveRequests().size(), "the rejection does not reserve more");
@@ -164,7 +164,7 @@ class WorkOrderLifecycleTest extends AbstractWorkOrderIntegrationTest {
 
         // The cancellation event left through the outbox.
         assertEquals(1, eventCount(orderId, "WorkOrderCancelled"), "one cancelled event");
-        assertEquals("CANCELADA", payloadFieldOf(orderId, "WorkOrderCancelled", "status"));
+        assertEquals("CANCELLED", payloadFieldOf(orderId, "WorkOrderCancelled", "status"));
         assertFalse(anyEventOfKind(orderId, "WorkOrderCompleted"), "cancelled is not completed");
     }
 
@@ -174,7 +174,7 @@ class WorkOrderLifecycleTest extends AbstractWorkOrderIntegrationTest {
     private QuoteWorkOrderResult quotedOrder(UUID tenant) {
         UUID orderId = openedOrder(tenant);
         asRequest(tenant, () -> transitionOrder.transition(transition(
-                tenant, orderId, WorkOrderStatus.EN_DIAGNOSTICO)));
+                tenant, orderId, WorkOrderStatus.IN_DIAGNOSIS)));
         asRequest(tenant, () -> addItems.addItems(new AddItemsToWorkOrderCommand(
                 tenant, orderId, items())));
         return asRequest(tenant, () -> quoteOrder.quote(

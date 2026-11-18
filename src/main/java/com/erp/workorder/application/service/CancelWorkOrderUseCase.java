@@ -17,14 +17,14 @@ import java.util.Map;
 /**
  * Cancels a work order. The stock rule is conditional and explicit: the
  * reserved parts are RELEASED only when the cancellation breaks a LIVE
- * reservation (the order was at COTIZADA). A cancellation of an order
+ * reservation (the order was at QUOTED). A cancellation of an order
  * that never quoted has NOTHING to return — the inventory is not called
  * with release keys for reservations that do not exist.
  */
 @Component
 public class CancelWorkOrderUseCase {
 
-    private static final WorkOrderStatus DESTINATION = WorkOrderStatus.CANCELADA;
+    private static final WorkOrderStatus DESTINATION = WorkOrderStatus.CANCELLED;
 
     private final WorkOrderRepositoryPort repository;
     private final ReservationReleaseService release;
@@ -55,7 +55,7 @@ public class CancelWorkOrderUseCase {
                         return new WorkOrderNotFoundException("the order does not exist in this tenant");
                     });
 
-            // The machine's verdict first: a cancellation from EN_EJECUCION
+            // The machine's verdict first: a cancellation from IN_PROGRESS
             // or a terminal state does NOT move and, this way, NEVER tries
             // to release what is being consumed.
             order.status().requireTransitionTo(DESTINATION);

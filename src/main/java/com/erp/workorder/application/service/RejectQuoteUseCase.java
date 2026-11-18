@@ -16,14 +16,14 @@ import java.util.Map;
 /**
  * The client does not approve the quotation: every reserved part is
  * RELEASED back into the inventory's lots and only then the order lands
- * at RECHAZADA. The machine only declares this move from COTIZADA — the
+ * at REJECTED. The machine only declares this move from QUOTED — the
  * state where the reservation is alive — so the rejection ALWAYS has
  * stock to give back and the release is never skipped.
  */
 @Component
 public class RejectQuoteUseCase {
 
-    private static final WorkOrderStatus DESTINATION = WorkOrderStatus.RECHAZADA;
+    private static final WorkOrderStatus DESTINATION = WorkOrderStatus.REJECTED;
 
     private final WorkOrderRepositoryPort repository;
     private final ReservationReleaseService release;
