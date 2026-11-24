@@ -64,7 +64,7 @@ class FleetClientTest {
     @Test
     void theVehicleArrivesWithItsRegisteredCustomerAndTheVerifiedToken() {
         UUID customerId = UUID.randomUUID();
-        server.expect(once(), requestTo("http://fleet.test/api/v1/fleet/vehicles/" + vehicleId))
+        server.expect(once(), requestTo("http://fleet.test/api/v1/vehicles/" + vehicleId))
                 .andExpect(header("Authorization", "Bearer verified.principal.token"))
                 .andExpect(header("X-Tenant-ID", TenantContextHolder.getTenantId().toString()))
                 .andRespond(withSuccess()
@@ -79,7 +79,7 @@ class FleetClientTest {
 
     @Test
     void anUnknownVehicleIsADecisiveAnswerAndNotAnOutage() {
-        server.expect(once(), requestTo("http://fleet.test/api/v1/fleet/vehicles/" + vehicleId))
+        server.expect(once(), requestTo("http://fleet.test/api/v1/vehicles/" + vehicleId))
                 .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
                         .withStatus(org.springframework.http.HttpStatus.NOT_FOUND));
 
@@ -100,7 +100,7 @@ class FleetClientTest {
 
     @Test
     void aDeadlineExhaustsAfterOneRetryIntoAnAvailabilityFailure() {
-        server.expect(times(2), requestTo("http://fleet.test/api/v1/fleet/vehicles/" + vehicleId))
+        server.expect(times(2), requestTo("http://fleet.test/api/v1/vehicles/" + vehicleId))
                 .andRespond(withException(new SocketTimeoutException("read timed out")));
 
         FleetUnavailableException failure = assertThrows(FleetUnavailableException.class,
@@ -112,9 +112,9 @@ class FleetClientTest {
 
     @Test
     void anOwnerlessAnswerFromAFallenFleetAlsoArrivesAfterTheRetry() {
-        server.expect(once(), requestTo("http://fleet.test/api/v1/fleet/vehicles/" + vehicleId))
+        server.expect(once(), requestTo("http://fleet.test/api/v1/vehicles/" + vehicleId))
                 .andRespond(withException(new SocketTimeoutException("read timed out")));
-        server.expect(once(), requestTo("http://fleet.test/api/v1/fleet/vehicles/" + vehicleId))
+        server.expect(once(), requestTo("http://fleet.test/api/v1/vehicles/" + vehicleId))
                 .andRespond(withServerError());
 
         FleetUnavailableException failure = assertThrows(FleetUnavailableException.class,
@@ -138,7 +138,7 @@ class FleetClientTest {
 
         // A failing call trio: transport failure once plus its retry (both
         // counted failures) open the circuit.
-        server.expect(times(2), requestTo("http://fleet.test/api/v1/fleet/vehicles/" + vehicleId))
+        server.expect(times(2), requestTo("http://fleet.test/api/v1/vehicles/" + vehicleId))
                 .andRespond(withException(new SocketTimeoutException("read timed out")));
         assertThrows(FleetUnavailableException.class, () -> tightClient.findVehicle(UUID.randomUUID(), vehicleId));
 

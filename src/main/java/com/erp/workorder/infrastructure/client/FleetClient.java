@@ -119,7 +119,7 @@ public class FleetClient implements FleetPort {
         }
         try {
             org.springframework.http.ResponseEntity<FleetVehicleResponse> response = restClient.get()
-                    .uri("/api/v1/fleet/vehicles/{vehicleId}", vehicleId)
+                    .uri("/api/v1/vehicles/{vehicleId}", vehicleId)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                     .header("X-Tenant-ID", tenantHeaderValue())
                     .retrieve()
