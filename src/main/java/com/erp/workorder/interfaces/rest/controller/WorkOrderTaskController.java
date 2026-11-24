@@ -6,6 +6,9 @@ import com.erp.workorder.application.service.TaskProductAllocationUseCase;
 import com.erp.workorder.domain.model.MechanicRef;
 import com.erp.workorder.domain.model.TaskProduct;
 import com.erp.workorder.domain.model.WorkOrderTask;
+import com.erp.workorder.infrastructure.adapter.external.MediaUploadClient;
+import com.erp.workorder.infrastructure.persistence.entity.WorkOrderTaskJpaEntity;
+import com.erp.workorder.infrastructure.persistence.repository.SpringDataWorkOrderTaskRepository;
 import com.erp.workorder.interfaces.rest.dto.request.AddTaskProductRequest;
 import com.erp.workorder.interfaces.rest.dto.request.AssignMechanicRequest;
 import com.erp.workorder.interfaces.rest.dto.request.CreateTaskRequest;
@@ -17,7 +20,9 @@ import com.erp.workorder.interfaces.rest.support.RequestPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,6 +32,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -39,6 +45,12 @@ public class WorkOrderTaskController {
     private final ManageWorkOrderTaskUseCase manageTaskUseCase;
     private final ExecuteWorkOrderTaskUseCase executeTaskUseCase;
     private final TaskProductAllocationUseCase productAllocationUseCase;
+
+    @Autowired(required = false)
+    private MediaUploadClient mediaUploadClient;
+
+    @Autowired(required = false)
+    private SpringDataWorkOrderTaskRepository taskRepository;
 
     public WorkOrderTaskController(ManageWorkOrderTaskUseCase manageTaskUseCase,
                                    ExecuteWorkOrderTaskUseCase executeTaskUseCase,
@@ -81,6 +93,37 @@ public class WorkOrderTaskController {
                 request.evidenceImages()
         );
         return ResponseEntity.ok(toResponse(task));
+    }
+
+    @PostMapping(value = "/api/v1/work-orders/{id}/tasks/{taskId}/evidence", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
+    @Operation(summary = "Upload technician task evidence image to Cloudflare R2")
+    public ResponseEntity<TaskResponse> uploadTaskEvidence(
+            @PathVariable("id") UUID workOrderId,
+            @PathVariable("taskId") UUID taskId,
+            @RequestParam("file") MultipartFile file) {
+        if (mediaUploadClient == null || taskRepository == null) {
+            throw new IllegalStateException("Media upload dependencies are not configured");
+        }
+        UUID tenantId = RequestPrincipal.tenant();
+        WorkOrderTaskJpaEntity entity = taskRepository.findById(taskId)
+                .filter(t -> tenantId.equals(t.getTenantId()))
+                .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
+        MediaUploadClient.UploadedMedia uploaded = mediaUploadClient.upload(
+                file, "work-orders/" + workOrderId + "/tasks/" + taskId);
+        List<String> updatedImages = new java.util.ArrayList<>(
+                entity.getEvidenceImages() != null ? java.util.Arrays.asList(entity.getEvidenceImages()) : List.of());
+        updatedImages.add(uploaded.url());
+        WorkOrderTask updated = manageTaskUseCase.updateTask(
+                tenantId,
+                workOrderId,
+                taskId,
+                entity.getServiceId(),
+                entity.getAssignedMechanicId(),
+                entity.getDescription(),
+                updatedImages
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(updated));
     }
 
     @DeleteMapping("/api/v1/work-orders/{id}/tasks/{taskId}")
