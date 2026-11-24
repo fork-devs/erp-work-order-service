@@ -137,6 +137,20 @@ public class WorkOrderController {
         return ResponseEntity.ok(orders);
     }
 
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "List authenticated customer's own work orders (read-only)")
+    public ResponseEntity<List<WorkOrderSummaryResponse>> listMyWorkOrders() {
+        UUID tenant = RequestPrincipal.tenant();
+        UUID userId = RequestPrincipal.userId();
+        List<WorkOrderSummaryResponse> orders = unitOfWork.callInTransaction(() ->
+                repository.listByTenant(tenant, null).stream()
+                        .filter(o -> userId != null && userId.equals(o.customer().id()))
+                        .map(WorkOrderController::toSummary)
+                        .toList());
+        return ResponseEntity.ok(orders);
+    }
+
     @GetMapping("/{orderId}")
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
     @Operation(summary = "One order's detail: items and history included")
