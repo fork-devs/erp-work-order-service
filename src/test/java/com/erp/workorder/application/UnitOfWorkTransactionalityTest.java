@@ -40,6 +40,8 @@ class UnitOfWorkTransactionalityTest extends AbstractWorkOrderIntegrationTest {
     void clean() throws SQLException {
         try (Connection connection = EmbeddedPostgresSupport.openOwnerConnection();
              Statement statement = connection.createStatement()) {
+            statement.execute("DELETE FROM work_order_evidences");
+            statement.execute("DELETE FROM work_order_items");
             statement.execute("DELETE FROM work_order_status_history");
             statement.execute("DELETE FROM work_order_outbox");
             statement.execute("DELETE FROM work_orders");

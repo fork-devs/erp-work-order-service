@@ -18,6 +18,7 @@ public class TaskProduct {
     private int quantity;
     private BigDecimal unitPrice;
     private BigDecimal totalAmount;
+    private TaskProductApprovalStatus approvalStatus;
     private final Instant createdAt;
     private Instant updatedAt;
 
@@ -29,6 +30,19 @@ public class TaskProduct {
                        BigDecimal unitPrice,
                        Instant createdAt,
                        Instant updatedAt) {
+        this(id, tenantId, taskId, productId, quantity, unitPrice,
+                TaskProductApprovalStatus.CUSTOMER_APPROVED, createdAt, updatedAt);
+    }
+
+    public TaskProduct(TaskProductId id,
+                       TenantId tenantId,
+                       TaskId taskId,
+                       UUID productId,
+                       int quantity,
+                       BigDecimal unitPrice,
+                       TaskProductApprovalStatus approvalStatus,
+                       Instant createdAt,
+                       Instant updatedAt) {
         this.id = Objects.requireNonNull(id, "task product id is mandatory");
         this.tenantId = Objects.requireNonNull(tenantId, "tenant id is mandatory");
         this.taskId = Objects.requireNonNull(taskId, "task id is mandatory");
@@ -36,6 +50,7 @@ public class TaskProduct {
         setQuantity(quantity);
         setUnitPrice(unitPrice);
         recalculateTotal();
+        this.approvalStatus = approvalStatus != null ? approvalStatus : TaskProductApprovalStatus.CUSTOMER_APPROVED;
         this.createdAt = createdAt != null ? createdAt : Instant.now();
         this.updatedAt = updatedAt != null ? updatedAt : this.createdAt;
     }
@@ -48,9 +63,52 @@ public class TaskProduct {
                 productId,
                 quantity,
                 unitPrice,
+                TaskProductApprovalStatus.CUSTOMER_APPROVED,
                 Instant.now(),
                 Instant.now()
         );
+    }
+
+    public static TaskProduct createProposed(TenantId tenantId, TaskId taskId, UUID productId, int quantity, BigDecimal unitPrice) {
+        return new TaskProduct(
+                TaskProductId.generate(),
+                tenantId,
+                taskId,
+                productId,
+                quantity,
+                unitPrice,
+                TaskProductApprovalStatus.PENDING_SUPERVISOR_CHECK,
+                Instant.now(),
+                Instant.now()
+        );
+    }
+
+    public void sendToCustomer() {
+        if (this.approvalStatus != TaskProductApprovalStatus.PENDING_SUPERVISOR_CHECK) {
+            throw new IllegalStateException("Only PENDING_SUPERVISOR_CHECK items can be sent to customer");
+        }
+        this.approvalStatus = TaskProductApprovalStatus.SENT_TO_CUSTOMER;
+        this.updatedAt = Instant.now();
+    }
+
+    public void approveByCustomer() {
+        if (this.approvalStatus != TaskProductApprovalStatus.SENT_TO_CUSTOMER) {
+            throw new IllegalStateException("Only SENT_TO_CUSTOMER items can be approved by customer");
+        }
+        this.approvalStatus = TaskProductApprovalStatus.CUSTOMER_APPROVED;
+        this.updatedAt = Instant.now();
+    }
+
+    public void rejectByCustomer() {
+        if (this.approvalStatus != TaskProductApprovalStatus.SENT_TO_CUSTOMER) {
+            throw new IllegalStateException("Only SENT_TO_CUSTOMER items can be rejected by customer");
+        }
+        this.approvalStatus = TaskProductApprovalStatus.CUSTOMER_REJECTED;
+        this.updatedAt = Instant.now();
+    }
+
+    public TaskProductApprovalStatus approvalStatus() {
+        return approvalStatus;
     }
 
     public void updateQuantity(int newQuantity) {

@@ -38,6 +38,9 @@ public class WorkOrderTaskProductJpaEntity {
     @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal totalAmount;
 
+    @Column(name = "approval_status", nullable = false, length = 35)
+    private String approvalStatus = "CUSTOMER_APPROVED";
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -80,6 +83,8 @@ public class WorkOrderTaskProductJpaEntity {
     public void setUnitPrice(BigDecimal unitPrice) { this.unitPrice = unitPrice; }
     public BigDecimal getTotalAmount() { return totalAmount; }
     public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public String getApprovalStatus() { return approvalStatus; }
+    public void setApprovalStatus(String approvalStatus) { this.approvalStatus = approvalStatus; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
