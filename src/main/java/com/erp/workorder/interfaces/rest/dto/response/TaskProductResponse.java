@@ -10,5 +10,17 @@ public record TaskProductResponse(
         int quantity,
         BigDecimal unitPrice,
         BigDecimal totalAmount,
+        String approvalStatus,
         Instant createdAt
-) {}
+) {
+    public TaskProductResponse(
+            UUID id,
+            UUID productId,
+            int quantity,
+            BigDecimal unitPrice,
+            BigDecimal totalAmount,
+            Instant createdAt
+    ) {
+        this(id, productId, quantity, unitPrice, totalAmount, "CUSTOMER_APPROVED", createdAt);
+    }
+}

@@ -17,6 +17,7 @@ import com.erp.workorder.domain.port.WorkOrderTaskRepositoryPort;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -132,6 +133,123 @@ public class TaskProductAllocationUseCase {
 
             task.removeProduct(productId);
             taskRepository.save(task);
+        });
+    }
+
+    public TaskProduct proposeProduct(UUID tenantId, UUID taskId, UUID mechanicUserId,
+                                      UUID productId, int quantity, BigDecimal unitPrice) {
+        return unitOfWork.callInTransaction(() -> {
+            TenantId tId = new TenantId(tenantId);
+            WorkOrderTask task = taskRepository.findById(tId, TaskId.of(taskId))
+                    .orElseThrow(() -> new TaskNotFoundException("Task not found: " + taskId));
+
+            if (task.assignedMechanic().isEmpty() || !task.assignedMechanic().get().id().equals(mechanicUserId)) {
+                throw new IllegalStateException("Only the assigned technician can propose spare parts for this task");
+            }
+
+            WorkOrder order = workOrderRepository.findById(tenantId, task.workOrderId())
+                    .orElseThrow(() -> new WorkOrderNotFoundException("Work order not found: " + task.workOrderId()));
+
+            if (isClosed(order.status())) {
+                throw new WorkOrderClosedException("Cannot allocate parts to closed work order in status: " + order.status());
+            }
+
+            TaskProduct product = TaskProduct.createProposed(tId, task.id(), productId, quantity, unitPrice);
+            task.addProduct(product);
+            taskRepository.save(task);
+            return product;
+        });
+    }
+
+    public TaskProduct updateProposedProductQuantity(UUID tenantId, UUID taskId, UUID mechanicUserId,
+                                                     UUID productId, int newQuantity) {
+        return unitOfWork.callInTransaction(() -> {
+            TenantId tId = new TenantId(tenantId);
+            WorkOrderTask task = taskRepository.findById(tId, TaskId.of(taskId))
+                    .orElseThrow(() -> new TaskNotFoundException("Task not found: " + taskId));
+
+            if (task.assignedMechanic().isEmpty() || !task.assignedMechanic().get().id().equals(mechanicUserId)) {
+                throw new IllegalStateException("Only the assigned technician can modify spare parts for this task");
+            }
+
+            TaskProduct existing = task.findProduct(productId)
+                    .orElseThrow(() -> new TaskProductNotFoundException("Product " + productId + " not found on task " + taskId));
+
+            if (existing.approvalStatus() != com.erp.workorder.domain.model.TaskProductApprovalStatus.PENDING_SUPERVISOR_CHECK) {
+                throw new IllegalStateException("Technician can only adjust quantity while item is PENDING_SUPERVISOR_CHECK");
+            }
+
+            existing.updateQuantity(newQuantity);
+            taskRepository.save(task);
+            return existing;
+        });
+    }
+
+    public List<TaskProduct> submitSupplementToCustomer(UUID tenantId, UUID workOrderId) {
+        return unitOfWork.callInTransaction(() -> {
+            TenantId tId = new TenantId(tenantId);
+            WorkOrder order = workOrderRepository.findById(tenantId, workOrderId)
+                    .orElseThrow(() -> new WorkOrderNotFoundException("Work order not found: " + workOrderId));
+            if (isClosed(order.status())) {
+                throw new WorkOrderClosedException("Cannot send supplement for closed work order in status: " + order.status());
+            }
+
+            List<WorkOrderTask> tasks = taskRepository.findByWorkOrderId(tId, workOrderId);
+            List<TaskProduct> submitted = new java.util.ArrayList<>();
+            for (WorkOrderTask task : tasks) {
+                boolean modified = false;
+                for (TaskProduct product : task.products()) {
+                    if (product.approvalStatus() == com.erp.workorder.domain.model.TaskProductApprovalStatus.PENDING_SUPERVISOR_CHECK) {
+                        product.sendToCustomer();
+                        submitted.add(product);
+                        modified = true;
+                    }
+                }
+                if (modified) {
+                    taskRepository.save(task);
+                }
+            }
+            return submitted;
+        });
+    }
+
+    public List<TaskProduct> respondToSupplement(UUID tenantId, UUID workOrderId, boolean approved) {
+        return unitOfWork.callInTransaction(() -> {
+            TenantId tId = new TenantId(tenantId);
+            WorkOrder order = workOrderRepository.findById(tenantId, workOrderId)
+                    .orElseThrow(() -> new WorkOrderNotFoundException("Work order not found: " + workOrderId));
+            if (isClosed(order.status())) {
+                throw new WorkOrderClosedException("Cannot respond to supplement for closed work order in status: " + order.status());
+            }
+
+            List<WorkOrderTask> tasks = taskRepository.findByWorkOrderId(tId, workOrderId);
+            List<TaskProduct> processed = new java.util.ArrayList<>();
+            for (WorkOrderTask task : tasks) {
+                boolean modified = false;
+                for (TaskProduct product : task.products()) {
+                    if (product.approvalStatus() == com.erp.workorder.domain.model.TaskProductApprovalStatus.SENT_TO_CUSTOMER) {
+                        if (approved) {
+                            String idempotencyKey = "wo-task-" + task.id().value() + "-prod-" + product.productId() + "-supp-app";
+                            inventoryPort.reserve(new InventoryPort.StockReservation(
+                                    product.productId(),
+                                    order.branch().id(),
+                                    product.quantity(),
+                                    order.id(),
+                                    idempotencyKey
+                            ));
+                            product.approveByCustomer();
+                        } else {
+                            product.rejectByCustomer();
+                        }
+                        processed.add(product);
+                        modified = true;
+                    }
+                }
+                if (modified) {
+                    taskRepository.save(task);
+                }
+            }
+            return processed;
         });
     }
 
