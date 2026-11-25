@@ -45,6 +45,18 @@ public class ManageWorkOrderTaskUseCase {
         this.unitOfWork = unitOfWork;
     }
 
+    public List<WorkOrderTask> listTasks(UUID tenantId, UUID workOrderId, UUID requesterUserId, boolean customerOnly) {
+        return unitOfWork.callInTransaction(() -> {
+            WorkOrder order = workOrderRepository.findById(tenantId, workOrderId)
+                    .orElseThrow(() -> new WorkOrderNotFoundException("Work order not found: " + workOrderId));
+            if (customerOnly && (requesterUserId == null || !requesterUserId.equals(order.customer().id()))) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "Customer is not authorized to view tasks of another customer's work order");
+            }
+            return taskRepository.findByWorkOrderId(new TenantId(tenantId), workOrderId);
+        });
+    }
+
     public WorkOrderTask addTask(UUID tenantId,
                                  UUID workOrderId,
                                  UUID serviceId,
