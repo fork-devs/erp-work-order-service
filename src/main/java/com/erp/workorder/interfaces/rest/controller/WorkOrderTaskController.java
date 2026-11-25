@@ -27,6 +27,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -60,6 +61,36 @@ public class WorkOrderTaskController {
         this.manageTaskUseCase = manageTaskUseCase;
         this.executeTaskUseCase = executeTaskUseCase;
         this.productAllocationUseCase = productAllocationUseCase;
+    }
+
+    @GetMapping("/api/v1/work-orders/{id}/tasks")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO', 'CUSTOMER', 'CLIENTE')")
+    @Operation(summary = "List tasks of a work order (read-only)", description = "Returns task status, technician evidence images, and spare parts. Customers can only view their own orders.")
+    public ResponseEntity<List<TaskResponse>> listTasks(
+            @PathVariable("id") UUID workOrderId,
+            Authentication authentication) {
+        UUID tenantId = RequestPrincipal.tenant();
+        UUID userId = RequestPrincipal.userId();
+        boolean customerOnly = isCustomerOnly(authentication);
+        List<TaskResponse> responses = manageTaskUseCase.listTasks(tenantId, workOrderId, userId, customerOnly)
+                .stream()
+                .map(WorkOrderTaskController::toResponse)
+                .toList();
+        return ResponseEntity.ok(responses);
+    }
+
+    private static boolean isCustomerOnly(Authentication authentication) {
+        if (authentication == null || authentication.getAuthorities() == null) {
+            return false;
+        }
+        boolean hasCustomer = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_CUSTOMER".equals(a.getAuthority()) || "ROLE_CLIENTE".equals(a.getAuthority()));
+        boolean hasStaff = authentication.getAuthorities().stream()
+                .anyMatch(a -> Set.of(
+                        "ROLE_SUPERADMIN", "ROLE_WORKSHOP_ADMIN", "ROLE_ADMIN_TALLER",
+                        "ROLE_SERVICE_ADVISOR", "ROLE_ASESOR",
+                        "ROLE_TECHNICIAN", "ROLE_MECANICO").contains(a.getAuthority()));
+        return hasCustomer && !hasStaff;
     }
 
     @PostMapping("/api/v1/work-orders/{id}/tasks")
