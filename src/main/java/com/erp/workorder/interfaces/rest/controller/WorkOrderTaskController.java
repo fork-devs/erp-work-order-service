@@ -6,6 +6,9 @@ import com.erp.workorder.application.service.TaskProductAllocationUseCase;
 import com.erp.workorder.domain.model.MechanicRef;
 import com.erp.workorder.domain.model.TaskProduct;
 import com.erp.workorder.domain.model.WorkOrderTask;
+import com.erp.workorder.infrastructure.adapter.external.MediaUploadClient;
+import com.erp.workorder.infrastructure.persistence.entity.WorkOrderTaskJpaEntity;
+import com.erp.workorder.infrastructure.persistence.repository.SpringDataWorkOrderTaskRepository;
 import com.erp.workorder.interfaces.rest.dto.request.AddTaskProductRequest;
 import com.erp.workorder.interfaces.rest.dto.request.AssignMechanicRequest;
 import com.erp.workorder.interfaces.rest.dto.request.CreateTaskRequest;
@@ -17,19 +20,25 @@ import com.erp.workorder.interfaces.rest.support.RequestPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -40,12 +49,48 @@ public class WorkOrderTaskController {
     private final ExecuteWorkOrderTaskUseCase executeTaskUseCase;
     private final TaskProductAllocationUseCase productAllocationUseCase;
 
+    @Autowired(required = false)
+    private MediaUploadClient mediaUploadClient;
+
+    @Autowired(required = false)
+    private SpringDataWorkOrderTaskRepository taskRepository;
+
     public WorkOrderTaskController(ManageWorkOrderTaskUseCase manageTaskUseCase,
                                    ExecuteWorkOrderTaskUseCase executeTaskUseCase,
                                    TaskProductAllocationUseCase productAllocationUseCase) {
         this.manageTaskUseCase = manageTaskUseCase;
         this.executeTaskUseCase = executeTaskUseCase;
         this.productAllocationUseCase = productAllocationUseCase;
+    }
+
+    @GetMapping("/api/v1/work-orders/{id}/tasks")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO', 'CUSTOMER', 'CLIENTE')")
+    @Operation(summary = "List tasks of a work order (read-only)", description = "Returns task status, technician evidence images, and spare parts. Customers can only view their own orders.")
+    public ResponseEntity<List<TaskResponse>> listTasks(
+            @PathVariable("id") UUID workOrderId,
+            Authentication authentication) {
+        UUID tenantId = RequestPrincipal.tenant();
+        UUID userId = RequestPrincipal.userId();
+        boolean customerOnly = isCustomerOnly(authentication);
+        List<TaskResponse> responses = manageTaskUseCase.listTasks(tenantId, workOrderId, userId, customerOnly)
+                .stream()
+                .map(WorkOrderTaskController::toResponse)
+                .toList();
+        return ResponseEntity.ok(responses);
+    }
+
+    private static boolean isCustomerOnly(Authentication authentication) {
+        if (authentication == null || authentication.getAuthorities() == null) {
+            return false;
+        }
+        boolean hasCustomer = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_CUSTOMER".equals(a.getAuthority()) || "ROLE_CLIENTE".equals(a.getAuthority()));
+        boolean hasStaff = authentication.getAuthorities().stream()
+                .anyMatch(a -> Set.of(
+                        "ROLE_SUPERADMIN", "ROLE_WORKSHOP_ADMIN", "ROLE_ADMIN_TALLER",
+                        "ROLE_SERVICE_ADVISOR", "ROLE_ASESOR",
+                        "ROLE_TECHNICIAN", "ROLE_MECANICO").contains(a.getAuthority()));
+        return hasCustomer && !hasStaff;
     }
 
     @PostMapping("/api/v1/work-orders/{id}/tasks")
@@ -81,6 +126,37 @@ public class WorkOrderTaskController {
                 request.evidenceImages()
         );
         return ResponseEntity.ok(toResponse(task));
+    }
+
+    @PostMapping(value = "/api/v1/work-orders/{id}/tasks/{taskId}/evidence", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
+    @Operation(summary = "Upload technician task evidence image to Cloudflare R2")
+    public ResponseEntity<TaskResponse> uploadTaskEvidence(
+            @PathVariable("id") UUID workOrderId,
+            @PathVariable("taskId") UUID taskId,
+            @RequestParam("file") MultipartFile file) {
+        if (mediaUploadClient == null || taskRepository == null) {
+            throw new IllegalStateException("Media upload dependencies are not configured");
+        }
+        UUID tenantId = RequestPrincipal.tenant();
+        WorkOrderTaskJpaEntity entity = taskRepository.findById(taskId)
+                .filter(t -> tenantId.equals(t.getTenantId()))
+                .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
+        MediaUploadClient.UploadedMedia uploaded = mediaUploadClient.upload(
+                file, "work-orders/" + workOrderId + "/tasks/" + taskId);
+        List<String> updatedImages = new java.util.ArrayList<>(
+                entity.getEvidenceImages() != null ? java.util.Arrays.asList(entity.getEvidenceImages()) : List.of());
+        updatedImages.add(uploaded.url());
+        WorkOrderTask updated = manageTaskUseCase.updateTask(
+                tenantId,
+                workOrderId,
+                taskId,
+                entity.getServiceId(),
+                entity.getAssignedMechanicId(),
+                entity.getDescription(),
+                updatedImages
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(updated));
     }
 
     @DeleteMapping("/api/v1/work-orders/{id}/tasks/{taskId}")
@@ -134,38 +210,114 @@ public class WorkOrderTaskController {
     }
 
     @PostMapping("/api/v1/work-order-tasks/{taskId}/products")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
-    @Operation(summary = "Allocate spare part to task with immediate stock reservation")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
+    @Operation(summary = "Allocate or propose spare part to task (technician proposals require supervisor check)")
     public ResponseEntity<TaskProductResponse> addProduct(
             @PathVariable("taskId") UUID taskId,
-            @Valid @RequestBody AddTaskProductRequest request) {
+            @Valid @RequestBody AddTaskProductRequest request,
+            Authentication authentication) {
         UUID tenantId = RequestPrincipal.tenant();
         BigDecimal price = request.unitPrice() != null ? request.unitPrice() : BigDecimal.ZERO;
-        TaskProduct product = productAllocationUseCase.addProduct(
-                tenantId,
-                taskId,
-                request.productId(),
-                request.quantity(),
-                price
-        );
+        TaskProduct product;
+        if (isTechnicianOnly(authentication)) {
+            UUID mechanicId = UUID.fromString(authentication.getName());
+            product = productAllocationUseCase.proposeProduct(
+                    tenantId,
+                    taskId,
+                    mechanicId,
+                    request.productId(),
+                    request.quantity(),
+                    price
+            );
+        } else {
+            product = productAllocationUseCase.addProduct(
+                    tenantId,
+                    taskId,
+                    request.productId(),
+                    request.quantity(),
+                    price
+            );
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(toProductResponse(product));
     }
 
     @PutMapping("/api/v1/work-order-tasks/{taskId}/products/{productId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
-    @Operation(summary = "Modify allocated spare part quantity with reservation adjustment")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
+    @Operation(summary = "Modify allocated or proposed spare part quantity")
     public ResponseEntity<TaskProductResponse> updateProductQuantity(
             @PathVariable("taskId") UUID taskId,
             @PathVariable("productId") UUID productId,
-            @Valid @RequestBody UpdateTaskProductQuantityRequest request) {
+            @Valid @RequestBody UpdateTaskProductQuantityRequest request,
+            Authentication authentication) {
         UUID tenantId = RequestPrincipal.tenant();
-        TaskProduct product = productAllocationUseCase.updateProductQuantity(
-                tenantId,
-                taskId,
-                productId,
-                request.quantity()
-        );
+        TaskProduct product;
+        if (isTechnicianOnly(authentication)) {
+            UUID mechanicId = UUID.fromString(authentication.getName());
+            product = productAllocationUseCase.updateProposedProductQuantity(
+                    tenantId,
+                    taskId,
+                    mechanicId,
+                    productId,
+                    request.quantity()
+            );
+        } else {
+            product = productAllocationUseCase.updateProductQuantity(
+                    tenantId,
+                    taskId,
+                    productId,
+                    request.quantity()
+            );
+        }
         return ResponseEntity.ok(toProductResponse(product));
+    }
+
+    @PostMapping("/api/v1/work-orders/{orderId}/supplements/send-to-customer")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
+    @Operation(summary = "Supervisor check: batch technician spare-part proposals and send supplement quote to customer")
+    public ResponseEntity<List<TaskProductResponse>> sendSupplementToCustomer(@PathVariable("orderId") UUID orderId) {
+        UUID tenantId = RequestPrincipal.tenant();
+        List<TaskProductResponse> sent = productAllocationUseCase.submitSupplementToCustomer(tenantId, orderId)
+                .stream()
+                .map(WorkOrderTaskController::toProductResponse)
+                .toList();
+        return ResponseEntity.ok(sent);
+    }
+
+    @PostMapping("/api/v1/work-orders/{orderId}/supplements/approve")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'CUSTOMER', 'CLIENTE')")
+    @Operation(summary = "Customer approves additional spare-part supplement and reserves stock")
+    public ResponseEntity<List<TaskProductResponse>> approveSupplement(@PathVariable("orderId") UUID orderId) {
+        UUID tenantId = RequestPrincipal.tenant();
+        List<TaskProductResponse> approved = productAllocationUseCase.respondToSupplement(tenantId, orderId, true)
+                .stream()
+                .map(WorkOrderTaskController::toProductResponse)
+                .toList();
+        return ResponseEntity.ok(approved);
+    }
+
+    @PostMapping("/api/v1/work-orders/{orderId}/supplements/reject")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'CUSTOMER', 'CLIENTE')")
+    @Operation(summary = "Customer rejects additional spare-part supplement")
+    public ResponseEntity<List<TaskProductResponse>> rejectSupplement(@PathVariable("orderId") UUID orderId) {
+        UUID tenantId = RequestPrincipal.tenant();
+        List<TaskProductResponse> rejected = productAllocationUseCase.respondToSupplement(tenantId, orderId, false)
+                .stream()
+                .map(WorkOrderTaskController::toProductResponse)
+                .toList();
+        return ResponseEntity.ok(rejected);
+    }
+
+    private static boolean isTechnicianOnly(Authentication authentication) {
+        if (authentication == null || authentication.getAuthorities() == null) {
+            return false;
+        }
+        boolean hasTech = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_TECHNICIAN".equals(a.getAuthority()) || "ROLE_MECANICO".equals(a.getAuthority()));
+        boolean hasSupervisor = authentication.getAuthorities().stream()
+                .anyMatch(a -> Set.of(
+                        "ROLE_SUPERADMIN", "ROLE_WORKSHOP_ADMIN", "ROLE_ADMIN_TALLER",
+                        "ROLE_SERVICE_ADVISOR", "ROLE_ASESOR").contains(a.getAuthority()));
+        return hasTech && !hasSupervisor;
     }
 
     @DeleteMapping("/api/v1/work-order-tasks/{taskId}/products/{productId}")
@@ -207,6 +359,7 @@ public class WorkOrderTaskController {
                 product.quantity(),
                 product.unitPrice(),
                 product.totalAmount(),
+                product.approvalStatus().name(),
                 product.createdAt()
         );
     }

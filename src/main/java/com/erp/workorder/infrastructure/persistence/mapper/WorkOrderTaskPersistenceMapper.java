@@ -4,6 +4,7 @@ import com.erp.workorder.domain.model.MechanicRef;
 import com.erp.workorder.domain.model.ServiceId;
 import com.erp.workorder.domain.model.TaskId;
 import com.erp.workorder.domain.model.TaskProduct;
+import com.erp.workorder.domain.model.TaskProductApprovalStatus;
 import com.erp.workorder.domain.model.TaskProductId;
 import com.erp.workorder.domain.model.TaskStatus;
 import com.erp.workorder.domain.model.TenantId;
@@ -38,7 +39,7 @@ public final class WorkOrderTaskPersistenceMapper {
 
         List<WorkOrderTaskProductJpaEntity> productEntities = new ArrayList<>();
         for (TaskProduct product : task.products()) {
-            productEntities.add(new WorkOrderTaskProductJpaEntity(
+            WorkOrderTaskProductJpaEntity pEntity = new WorkOrderTaskProductJpaEntity(
                     product.id().value(),
                     product.tenantId().id(),
                     entity,
@@ -48,7 +49,9 @@ public final class WorkOrderTaskPersistenceMapper {
                     product.totalAmount(),
                     product.createdAt(),
                     product.updatedAt()
-            ));
+            );
+            pEntity.setApprovalStatus(product.approvalStatus().name());
+            productEntities.add(pEntity);
         }
         entity.setProducts(productEntities);
         return entity;
@@ -69,6 +72,9 @@ public final class WorkOrderTaskPersistenceMapper {
                         p.getProductId(),
                         p.getQuantity(),
                         p.getUnitPrice(),
+                        p.getApprovalStatus() != null
+                                ? TaskProductApprovalStatus.valueOf(p.getApprovalStatus())
+                                : TaskProductApprovalStatus.CUSTOMER_APPROVED,
                         p.getCreatedAt(),
                         p.getUpdatedAt()
                 ));
